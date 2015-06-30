@@ -2,7 +2,7 @@
 // @name        AposBot
 // @namespace   AposBot
 // @include     http://agar.io/
-// @version     3.31_meh3
+// @version     3.31_meh4
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
 // ==/UserScript==
@@ -39,13 +39,6 @@ console.log("Running Apos Bot!");
     console.log("Apos Bot!");
     var lastX = 0;
     var lastY = 0;
-    var targetX = 0;
-    var targetY = 0;
-    var lastAngle = 0;
-    var times = 0;
-    var SPLIT_THREAT_BUFFER = 500;//710
-
-    var FOOD_ANGLE_TOLERANCE = 10; // in degrees
 
     if (f.botList == null) {
         f.botList = [];
@@ -682,7 +675,20 @@ console.log("Running Apos Bot!");
             var tempMoveY = getPointY();
 
             if (player.length > 0) {
+/*
+   can do this, but means bigger sub blobs won't see all that is food for them.
+   similarly for threats and viruses.
 
+	            var allPossibleFood = null;
+                allPossibleFood = getAllFood(player[0]);
+                var smallestPlayer = player[0];
+                for (var k = 1; k < player.length; k++) {
+					if (player[k].size < smallestPlayer.size) smallestPlayer = player[k];
+				}
+				var clusterAllFood = clusterFood(allPossibleFood, smallestPlayer);
+                var allPossibleThreats = getAllThreats(smallestPlayer);
+                var allPossibleViruses = getAllViruses(smallestPlayer);
+*/
                 for (var k = 0; k < player.length; k++) {
 
                     //console.log("Working on blob: " + k);
@@ -695,7 +701,7 @@ console.log("Running Apos Bot!");
                     var allPossibleFood = null;
                     allPossibleFood = getAllFood(player[k]); // #1
 
-                    var allPossibleThreats = getAllThreats(player[k]);
+                    //var allPossibleThreats = getAllThreats(player[k]);
                     //console.log("Internodes: " + interNodes.length + " Food: " + allPossibleFood.length + " Threats: " + allPossibleThreats.length);
                     var allPossibleViruses = getAllViruses(player[k]);
 
@@ -857,6 +863,18 @@ console.log("Running Apos Bot!");
                         drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
                     }
 
+					for (var i = 0; i < clusterAllFood.length; i++) {
+						//This is the cost function. Higher is better.
+
+						var clusterAngle = getAngle(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
+
+						clusterAllFood[i][2] = clusterAllFood[i][2] * 6 - computeDistance(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
+						clusterAllFood[i][3] = clusterAngle;
+
+						drawPoint(clusterAllFood[i][0], clusterAllFood[i][1], 1, "");
+					}
+
+
                     if (goodAngles.length > 0) {
                         var bIndex = goodAngles[0];
                         var biggest = goodAngles[0][1];
@@ -868,10 +886,27 @@ console.log("Running Apos Bot!");
                             }
                         }
                         var perfectAngle = (bIndex[0] + bIndex[1] / 2).mod(360);
+                    	var RHS = bIndex[0];
+                    	var LHS = RHS+bIndex[1];
+						var FOOD_ANGLE_TOLERANCE = 10;
 
-                        perfectAngle = shiftAngle(obstacleAngles, perfectAngle, bIndex);
+						// oh, sure, that's the perfect angle but can't we try to eat on the way?
+						var food = 0;
+						var dist = 300;
+						for (var i = 0; i < clusterAllFood.length; i++) {
 
-                        var line1 = followAngle(perfectAngle, player[k].x, player[k].y, 300);
+							clusterBearing = clusterAllFood[i][3] + (RHS>clusterAllFood[i][3]&&LHS>359?360:0);
+							if ((clusterBearing >= (RHS + FOOD_ANGLE_TOLERANCE)) && (clusterBearing <= (LHS - FOOD_ANGLE_TOLERANCE))) {
+								if (clusterAllFood[i][2]>food) {
+									perfectAngle = clusterBearing;
+									food = clusterAllFood[i][2];
+									dist = computeDistance(player[k].x,player[k].y, clusterAllFood[i][0], clusterAllFood[i][1]);
+								}
+							}
+						}
+                        perfectAngle = shiftAngle(obstacleAngles, perfectAngle, bIndex);?bindex
+
+                        var line1 = followAngle(perfectAngle, player[k].x, player[k].y, dist);
 
                         drawLine(player[k].x, player[k].y, line1[0], line1[1], 7);
                         tempMoveX = line1[0];
@@ -888,37 +923,16 @@ console.log("Running Apos Bot!");
                         tempMoveY = destination[1];
                         drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 3);
                     } else if (clusterAllFood.length > 0) {
-                        for (var i = 0; i < clusterAllFood.length; i++) {
-                            //console.log("mefore: " + clusterAllFood[i][2]);
-                            //This is the cost function. Higher is better.
 
-                                var clusterAngle = getAngle(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
+						var bestFoodI = 0;
+						var bestFood = clusterAllFood[0][2];
+						for (var i = 1; i < clusterAllFood.length; i++) {
+							if (bestFood < clusterAllFood[i][2]) {
+								bestFood = clusterAllFood[i][2];
+								bestFoodI = i;
+							}
+						}
 
-                                clusterAllFood[i][2] = clusterAllFood[i][2] * 6 - computeDistance(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
-                                //console.log("Current Value: " + clusterAllFood[i][2]);
-
-                                //(goodAngles[bIndex][1] / 2 - (Math.abs(perfectAngle - clusterAngle)));
-
-                                clusterAllFood[i][3] = clusterAngle;
-
-                                drawPoint(clusterAllFood[i][0], clusterAllFood[i][1], 1, "");
-                        	if (clusterAllFood[i][4].length>1) {
-                                	for (var l = 0; l<clusterAllFood[i][4].length; l++) {
-        	                            	food = allPossibleFood[clusterAllFood[i][4][l]];
-                	                    	//console.log(food);
-                        	            	drawLine(clusterAllFood[i][0], clusterAllFood[i][1], food[0], food[1], 1);
-	                                }
-                            	}
-                        }
-
-                        var bestFoodI = 0;
-                        var bestFood = clusterAllFood[0][2];
-                        for (var i = 1; i < clusterAllFood.length; i++) {
-                            if (bestFood < clusterAllFood[i][2]) {
-                                bestFood = clusterAllFood[i][2];
-                                bestFoodI = i;
-                            }
-                        }
 
                         //console.log("Best Value: " + clusterAllFood[bestFoodI][2]);
 
@@ -942,7 +956,7 @@ console.log("Running Apos Bot!");
 
                         tempMoveX = destination[0];
                         tempMoveY = destination[1];
-                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);                        
+                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);
                     }
 
                     drawPoint(tempPoint[0], tempPoint[1], tempPoint[2], "");

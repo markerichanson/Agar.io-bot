@@ -701,7 +701,7 @@ console.log("Running Apos Bot!");
                     var allPossibleFood = null;
                     allPossibleFood = getAllFood(player[k]); // #1
 
-                    //var allPossibleThreats = getAllThreats(player[k]);
+                    var allPossibleThreats = getAllThreats(player[k]);
                     //console.log("Internodes: " + interNodes.length + " Food: " + allPossibleFood.length + " Threats: " + allPossibleThreats.length);
                     var allPossibleViruses = getAllViruses(player[k]);
 

@@ -2,7 +2,7 @@
 // @name        AposBot
 // @namespace   AposBot
 // @include     http://agar.io/
-// @version     3.31_meh2
+// @version     3.31_meh3
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
 // ==/UserScript==
@@ -248,12 +248,14 @@ console.log("Running Apos Bot!");
                     clusters[j][0] = (foodList[i][2]*foodList[i][0] + clusters[j][2]*clusters[j][0]) / totalSize;
                     clusters[j][1] = (foodList[i][2]*foodList[i][1] + clusters[j][2]*clusters[j][1]) / totalSize;
                     clusters[j][2] = totalSize;
+                    clusters[j][3] = 0;
+                    clusters[j][4].push(i);
                     addedCluster = true;
                     break;
                 }
             }
             if (!addedCluster) {
-                clusters.push([foodList[i][0], foodList[i][1], foodList[i][2], 0]);
+                clusters.push([foodList[i][0], foodList[i][1], foodList[i][2], 0, [i]]);
             }
             addedCluster = false;
         }
@@ -890,7 +892,13 @@ console.log("Running Apos Bot!");
                                 clusterAllFood[i][3] = clusterAngle;
 
                                 drawPoint(clusterAllFood[i][0], clusterAllFood[i][1], 1, "");
-                                //console.log("After: " + clusterAllFood[i][2]);
+                        	if (clusterAllFood[i][4].length>1) {
+                                	for (var l = 0; l<clusterAllFood[i][4].length; l++) {
+        	                            	food = allPossibleFood[clusterAllFood[i][4][l]];
+                	                    	//console.log(food);
+                        	            	drawLine(clusterAllFood[i][0], clusterAllFood[i][1], food[0], food[1], 1);
+	                                }
+                            	}
                         }
 
                         var bestFoodI = 0;

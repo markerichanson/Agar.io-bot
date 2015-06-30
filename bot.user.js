@@ -2,7 +2,7 @@
 // @name        AposBot
 // @namespace   AposBot
 // @include     http://agar.io/
-// @version     3.31
+// @version     3.31_meh2
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
 // ==/UserScript==
@@ -52,10 +52,10 @@ console.log("Running Apos Bot!");
         g('#locationUnknown').addClass('form-group');
     }
 
-    f.botList.push(["AposBot", findDestination]);
+    f.botList.push(["MEHAposBot", findDestination]);
 
     var bList = g('#bList');
-    g('<option />', {value: (f.botList.length - 1), text: "AposBot"}).appendTo(bList);
+    g('<option />', {value: (f.botList.length - 1), text: "MEHAposBot"}).appendTo(bList);
 
     //Given an angle value that was gotten from valueAndleBased(),
     //returns a new value that scales it appropriately.

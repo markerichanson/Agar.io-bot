@@ -2,7 +2,7 @@
 // @name        Launcher
 // @namespace   AposLauncher
 // @include     http://agar.io/
-// @version     2.1
+// @version     2.85
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
 // ==/UserScript==
@@ -14,6 +14,21 @@ Number.prototype.mod = function(n) {
 Array.prototype.peek = function() {
     return this[this.length-1];
 }
+
+$.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/launcher.user.js?1', function(data) {
+	var latestVersion = data.replace(/(\r\n|\n|\r)/gm,"");
+	latestVersion = latestVersion.substring(latestVersion.indexOf("// @version")+11,latestVersion.indexOf("// @grant"));
+
+	latestVersion = parseFloat(latestVersion + 0.0000);
+    var myVersion = parseFloat(GM_info.script.version + 0.0000); 
+	
+	if(latestVersion > myVersion)
+	{
+		alert("Update Available for launcher.user.js: V" + latestVersion + "\nGet the latest version from the GitHub page.");
+        window.open('https://github.com/Apostolique/Agar.io-bot/blob/master/launcher.user.js','_blank');
+	}
+	console.log('Current launcher.user.js Version: ' + myVersion + " on Github: " + latestVersion);
+});
 
 console.log("Running Bot Launcher!");
 (function (h, f) {
@@ -34,6 +49,21 @@ console.log("Running Bot Launcher!");
     if (70 == e.keyCode) {
       window.setShowMass(!getMassBool());
     }
+    if (69 == e.keyCode) {
+        if (message.length > 0) {
+            window.setMessage([]);
+            window.onmouseup = function () {
+            };
+            window.ignoreStream = true;
+        } else {
+            window.ignoreStream = false;
+            window.refreshTwitch();
+        }
+    }
+    if (81 == e.keyCode) {
+        console.log("ToggleFollowMouse");
+        toggleFollow = !toggleFollow;
+    }
   }
 
   function humanPlayer() {
@@ -49,6 +79,8 @@ console.log("Running Bot Launcher!");
         window.jQuery('#locationUnknown').append(window.jQuery('<select id="bList" class="form-control" onchange="setBotIndex($(this).val());" />'));
         window.jQuery('#locationUnknown').addClass('form-group');
     }
+
+    window.jQuery('#nick').val(originalName);
 
     window.botList.push(["Human", humanPlayer]);
 
@@ -87,13 +119,16 @@ console.log("Running Bot Launcher!");
     b = !1,
     c = !1;
     h.onkeydown = function (d) {
-      32 != d.keyCode || a || (K(), C(17), a = !0);
-      81 != d.keyCode || b || (C(18), b = !0);
-      87 != d.keyCode || c || (K(), C(21), c = !0);
-      27 == d.keyCode && Ca(!0);
-
       //UPDATE
-      keyAction(d);
+      if (!window.jQuery('#nick').is(":focus")) {
+        32 != d.keyCode || a || (K(), C(17), a = !0);
+        81 != d.keyCode || b || (C(18), b = !0);
+        87 != d.keyCode || c || (K(), C(21), c = !0);
+        27 == d.keyCode && Ca(!0);
+
+        //UPDATE
+        keyAction(d);
+      }
     };
     h.onkeyup = function (d) {
       32 == d.keyCode && (a = !1);
@@ -190,7 +225,7 @@ console.log("Running Bot Launcher!");
       },
       success: function (a) {
         a = a.split('\n');
-        '45.79.222.79:443' == a[0] ? pa()  : Ha('ws://' + a[0])
+        Ha('ws://' + a[0], a[1])
       },
       dataType: 'text',
       method: 'POST',
@@ -202,7 +237,7 @@ console.log("Running Bot Launcher!");
   function W() {
     la && v && (f('#connecting').show(), pa())
   }
-  function Ha(a) {
+  function Ha(a, hash) {
     if (r) {
       r.onopen = null;
       r.onmessage = null;
@@ -213,9 +248,10 @@ console.log("Running Bot Launcher!");
       }
       r = null
     }
-    var c = h.location.search.slice(1);
-    /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+$/.test(c) && (a = 'ws://' + c);
-    Va && (a = a.split(':'), a = a[0] + 's://ip-' + a[1].replace(/\./g, '-').replace(/\//g, '') + '.tech.agar.io:' + ( + a[2] + 2000));
+    if (Va) {
+      var d = a.split(':');
+      a = d[0] + 's://ip-' + d[1].replace(/\./g, '-').replace(/\//g, '') + '.tech.agar.io:' + ( + d[2] + 2000)
+    }
     F = [
     ];
     m = [
@@ -235,7 +271,27 @@ console.log("Running Bot Launcher!");
     serverIP = a;
     r = new WebSocket(a);
     r.binaryType = 'arraybuffer';
-    r.onopen = Wa;
+    r.onopen = function() {
+      var a;
+      aa = 500;
+      f('#connecting').hide();
+      console.log('socket open');
+      a = N(5);
+      a.setUint8(0, 254);
+      a.setUint32(1, 4, !0);
+      O(a);
+      a = N(5);
+      a.setUint8(0, 255);
+      a.setUint32(1, 154669603, !0);
+      O(a);
+      a = N(1 + hash.length);
+      a.setUint8(0, 80);
+      for (var c = 0; c < hash.length; ++c) {
+        a.setUint8(c + 1, hash.charCodeAt(c));
+      }
+      O(a);
+      Ia()
+    }
     r.onmessage = Xa;
     r.onclose = Ya;
     r.onerror = function () {
@@ -247,21 +303,6 @@ console.log("Running Bot Launcher!");
   }
   function O(a) {
     r.send(a.buffer)
-  }
-  function Wa() {
-    var a;
-    aa = 500;
-    f('#connecting').hide();
-    console.log('socket open');
-    a = N(5);
-    a.setUint8(0, 254);
-    a.setUint32(1, 4, !0);
-    O(a);
-    a = N(5);
-    a.setUint8(0, 255);
-    a.setUint32(1, 673720361, !0);
-    O(a);
-    Ia()
   }
   function Ya() {
     console.log('socket close');
@@ -485,9 +526,20 @@ console.log("Running Bot Launcher!");
   function K() {
 
     //UPDATE
-    if (getPlayer().length == 0) {
-        setNick(originalName);
+    if (getPlayer().length == 0 && !reviving && ~~(getCurrentScore() / 100) > 0) {
+        console.log("Dead: " + ~~(getCurrentScore() / 100));
+        apos('send', 'pageview');
     }
+    
+    if (getPlayer().length == 0) {
+        console.log("Revive");
+        setNick(originalName);
+        reviving = true;
+    } else if (getPlayer().length > 0 && reviving) {
+        reviving = false;
+    }
+
+
 
     var a;
     if (ua()) {
@@ -579,7 +631,7 @@ console.log("Running Bot Launcher!");
     for (d = 0; d < u.length; d++) u[d].T();
     //UPDATE
     if (getPlayer().length > 0) {
-        var moveLoc = window.botList[botIndex][1]();
+        var moveLoc = window.botList[botIndex][1](toggleFollow);
         if (!toggle) {
             setPoint(moveLoc[0], moveLoc[1]);
         }
@@ -758,6 +810,7 @@ console.log("Running Bot Launcher!");
     d.restore();
   }
   function drawStats(d) {
+    d.save()
     var currentDate = new Date();
 
     var nbSeconds = 0;
@@ -768,13 +821,17 @@ console.log("Running Bot Launcher!");
     bestTime = Math.max(nbSeconds, bestTime);
 
     var debugStrings = [];
+    debugStrings.push("Current Bot: " + window.botList[botIndex][0]);
     debugStrings.push("T - Bot: " + (!toggle ? "On" : "Off"));
     debugStrings.push("R - Lines: " + (!toggleDraw ? "On" : "Off"));
+    debugStrings.push("Q - Follow Mouse: " + (toggleFollow ? "On" : "Off"));
     debugStrings.push("Server: " + serverIP);
     debugStrings.push("Survived for: " + nbSeconds + " seconds");
 
     if (getPlayer().length > 0) {
-        debugStrings.push("Location: " + Math.floor(getPlayer()[0].x) + ", " + Math.floor(getPlayer()[0].y));
+        var offsetX = -getMapStartX();
+        var offsetY = -getMapStartY();
+        debugStrings.push("Location: " + Math.floor(getPlayer()[0].x + offsetX) + ", " + Math.floor(getPlayer()[0].y + offsetY));
     }
 
     var offsetValue = 20;
@@ -786,6 +843,39 @@ console.log("Running Bot Launcher!");
       d.drawImage(textRender, 20, offsetValue);
       offsetValue += textRender.height;
     }
+
+    if (message.length > 0) {
+        var mRender = [];
+        var mWidth = 0;
+        var mHeight = 0;
+
+        for (var i = 0; i < message.length; i++) {
+            var mText = new ja(28, '#FF0000', true,'#000000');
+            mText.u(message[i]);
+            mRender.push(mText.G());
+
+            if (mRender[i].width > mWidth) {
+                mWidth = mRender[i].width;
+            }
+            mHeight += mRender[i].height;
+        }
+
+        var mX = getWidth() / 2 - mWidth / 2;
+        var mY = 20;
+
+        d.globalAlpha = 0.4;
+        d.fillStyle = '#000000';
+        d.fillRect(mX - 10, mY - 10, mWidth + 20, mHeight + 20);
+        d.globalAlpha = 1;
+
+        var mOffset = mY;
+        for (var i = 0; i < mRender.length; i++) {
+            d.drawImage(mRender[i], getWidth() / 2 - mRender[i].width / 2, mOffset);
+            mOffset += mRender[i].height;
+        }
+    }
+
+    d.restore();
   }
 
   function cb() {
@@ -878,19 +968,23 @@ console.log("Running Bot Launcher!");
   //UPDATE
   toggle = false,
   toggleDraw = false,
+  toggleFollow = false,
   tempPoint = [0, 0, 1],
   dPoints = [],
   circles = [],
   dArc = [],
   dText = [],
   lines = [],
-  originalName = "NotReallyABot",
+  names = ["NotReallyABot"],
+  originalName = names[Math.floor(Math.random() * names.length)],
   sessionScore = 0,
   serverIP = "",
   interNodes = [],
   lifeTimer = new Date(),
   bestTime = 0,
   botIndex = 0,
+  reviving = false,
+  message = [],
 
   ma,
   e,
@@ -1383,12 +1477,32 @@ console.log("Running Bot Launcher!");
       return U;
     }
 
+    window.getMapStartX = function() {
+      return da;
+    }
+
+    window.getMapStartY = function() {
+      return ea;
+    }
+
+    window.getMapEndX = function() {
+      return fa;
+    }
+
+    window.getMapEndY = function() {
+      return ga;
+    }
+
     window.getScreenDistance = function() {
       var temp = screenDistance();
       return temp;
     }
     window.getLastUpdate = function() {
       return G;
+    }
+
+    window.getCurrentScore = function() {
+        return I;
     }
 
     window.setPoint = function(x, y) {
@@ -1417,6 +1531,10 @@ console.log("Running Bot Launcher!");
     window.setBotIndex = function(a) {
       console.log("Changing bot");
       botIndex = a;
+    }
+
+    window.setMessage = function(a) {
+        message = a;
     }
 
     var aa = 500,
@@ -1784,3 +1902,39 @@ console.log("Running Bot Launcher!");
     h.onload = Sa
   }
 }) (window, window.jQuery);
+
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','apos');
+
+apos('create', 'UA-64394184-1', 'auto');
+apos('send', 'pageview');
+
+window.ignoreStream = false,
+window.refreshTwitch = function() {
+    $.ajax({
+          url: "https://api.twitch.tv/kraken/streams/apostolique",
+          cache: false,
+          dataType: "jsonp"
+        }).done(function (data) {
+            if (data["stream"] == null) { 
+                //console.log("Apostolique is not online!");
+                window.setMessage([]);
+                window.onmouseup = function () {
+                };
+                window.ignoreStream = false;
+            } else {
+                //console.log("Apostolique is online!");
+                if (!window.ignoreStream) {
+                    window.setMessage(["twitch.tv/apostolique is online right now!", "Click the screen to open the stream!", "Press E to ignore."]);
+                    window.onmouseup = function () {
+                        window.open("http://www.twitch.tv/apostolique");
+                    };
+                }
+            }
+        }).fail(function () {
+        });
+};
+setInterval(window.refreshTwitch, 60000);
+window.refreshTwitch();

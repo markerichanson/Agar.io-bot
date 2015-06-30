@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        AposBot
-// @namespace   AposBot
+// @name        AposBotBeta
+// @namespace   AposBotBeta
 // @include     http://agar.io/
-// @version     3.31
+// @version     3.4
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
 // ==/UserScript==
@@ -21,8 +21,8 @@ $.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/bot.user
     latestVersion = latestVersion.substring(latestVersion.indexOf("// @version")+11,latestVersion.indexOf("// @grant"));
 
     latestVersion = parseFloat(latestVersion + 0.0000);
-    var myVersion = parseFloat(GM_info.script.version + 0.0000);
-
+    var myVersion = parseFloat(GM_info.script.version + 0.0000); 
+	
 	if(latestVersion > myVersion)
 	{
 		alert("Update Available for bot.user.js: V" + latestVersion + "\nGet the latest version from the GitHub page.");
@@ -38,24 +38,16 @@ console.log("Running Apos Bot!");
     var splitDistance = 710;
     console.log("Apos Bot!");
 
-    var targetX = 0;
-    var targetY = 0;
-    var lastAngle = 0;
-    var times = 0;
-    var SPLIT_THREAT_BUFFER = 500;//710
-
-    var FOOD_ANGLE_TOLERANCE = 10; // in degrees
-
     if (f.botList == null) {
         f.botList = [];
         g('#locationUnknown').append(g('<select id="bList" class="form-control" onchange="setBotIndex($(this).val());" />'));
         g('#locationUnknown').addClass('form-group');
     }
 
-    f.botList.push(["AposBot", findDestination]);
+    f.botList.push(["AposBotBeta", findDestination]);
 
     var bList = g('#bList');
-    g('<option />', {value: (f.botList.length - 1), text: "AposBot"}).appendTo(bList);
+    g('<option />', {value: (f.botList.length - 1), text: "AposBotBeta"}).appendTo(bList);
 
     //Given an angle value that was gotten from valueAndleBased(),
     //returns a new value that scales it appropriately.
@@ -145,10 +137,12 @@ console.log("Running Apos Bot!");
                 }
             }
 
-            if (!isMe) {
-                return true;
+            for (var i = 0; i < player.length; i++) {
+                if (!isMe) {
+                    return true;
+                }
+                return false;
             }
-            return false;
         }, interNodes);
 
         return dotList;
@@ -244,10 +238,9 @@ console.log("Running Apos Bot!");
         for (var i = 0; i < foodList.length; i++) {
             for (var j = 0; j < clusters.length; j++) {
                 if (computeDistance(foodList[i][0], foodList[i][1], clusters[j][0], clusters[j][1]) < blobSize * 1.5) {
-                    totalSize = clusters[j][2] + foodList[i][2];
-                    clusters[j][0] = (foodList[i][2]*foodList[i][0] + clusters[j][2]*clusters[j][0]) / totalSize;
-                    clusters[j][1] = (foodList[i][2]*foodList[i][1] + clusters[j][2]*clusters[j][1]) / totalSize;
-                    clusters[j][2] = totalSize;
+                    clusters[j][0] = (foodList[i][0] + clusters[j][0]) / 2;
+                    clusters[j][1] = (foodList[i][1] + clusters[j][1]) / 2;
+                    clusters[j][2] += foodList[i][2];
                     addedCluster = true;
                     break;
                 }
@@ -414,25 +407,23 @@ console.log("Running Apos Bot!");
         drawPoint(line1[0], line1[1], 5, "" + text);
     }
 
-    function getEdgeLinesFromPoint(blob1, blob2) {
-        // find tangents
-        //
-        // TODO: DON'T FORGET TO HANDLE IF BLOB1'S CENTER POINT IS INSIDE BLOB2!!!
+    //TODO: Don't let this function do the radius math.
+    function getEdgeLinesFromPoint(blob1, blob2, radius) {
         var px = blob1.x;
         var py = blob1.y;
 
         var cx = blob2.x;
         var cy = blob2.y;
 
-        var radius = blob2.size;
+        //var radius = blob2.size;
 
-        if (blob2.d) {
+        /*if (blob2.d) {
             radius = blob1.size;
         } else if(canSplit(blob1, blob2)) {
             radius += splitDistance;
         } else {
             radius += blob1.size * 2;
-        }
+        }*/
 
         var shouldInvert = false;
 
@@ -447,13 +438,13 @@ console.log("Running Apos Bot!");
         var a = Math.asin(radius / dd);
         var b = Math.atan2(dy, dx);
 
-        var t = b - a;
+        var t = b - a
         var ta = {
             x: radius * Math.sin(t),
             y: radius * -Math.cos(t)
         };
 
-        t = b + a;
+        t = b + a
         var tb = {
             x: radius * -Math.sin(t),
             y: radius * Math.cos(t)
@@ -497,7 +488,7 @@ console.log("Running Apos Bot!");
         if (blob.y < f.getMapStartY() + 1000) {
             //TOP
             //console.log("TOP");
-
+            
             listToUse.push([[225, true], [315, false]]);
 
             var lineLeft = followAngle(225, blob.x, blob.y, 190 + blob.size);
@@ -511,7 +502,7 @@ console.log("Running Apos Bot!");
             //console.log("RIGHT");
 
             listToUse.push([[315, true], [45, false]]);
-
+            
             var lineLeft = followAngle(315, blob.x, blob.y, 190 + blob.size);
             var lineRight = followAngle(45, blob.x, blob.y, 190 + blob.size);
             drawLine(blob.x, blob.y, lineLeft[0], lineLeft[1], 5);
@@ -523,7 +514,7 @@ console.log("Running Apos Bot!");
             //console.log("BOTTOM");
 
             listToUse.push([[45, true], [135, false]]);
-
+            
             var lineLeft = followAngle(45, blob.x, blob.y, 190 + blob.size);
             var lineRight = followAngle(135, blob.x, blob.y, 190 + blob.size);
             drawLine(blob.x, blob.y, lineLeft[0], lineLeft[1], 5);
@@ -537,7 +528,7 @@ console.log("Running Apos Bot!");
     //listToUse contains angles in the form of [angle, boolean].
     //boolean is true when the range is starting. False when it's ending.
     //range = [[angle1, true], [angle2, false]]
-
+    
     function getAngleIndex(listToUse, angle) {
         if (listToUse.length == 0) {
             return 0;
@@ -551,7 +542,7 @@ console.log("Running Apos Bot!");
 
         return listToUse.length;
     }
-
+    
     function addAngle(listToUse, range) {
         //#1 Find first open element
         //#2 Try to add range1 to the list. If it is within other range, don't add it, set a boolean.
@@ -610,8 +601,8 @@ console.log("Running Apos Bot!");
         return listToUse;
     }
 
-    function getAngleRange(blob1, blob2, index) {
-        var angleStuff = getEdgeLinesFromPoint(blob1, blob2);
+    function getAngleRange(blob1, blob2, index, radius) {
+        var angleStuff = getEdgeLinesFromPoint(blob1, blob2, radius);
 
         var leftAngle = angleStuff[0];
         var rightAngle = rangeToAngle(angleStuff);
@@ -644,7 +635,7 @@ console.log("Running Apos Bot!");
 
     //Given a list of conditions, shift the angle to the closest available spot respecting the range given.
     function shiftAngle(listToUse, angle, range) {
-        //TODO: shiftAngle needs to respect the range!
+        //TODO: shiftAngle needs to respect the range! DONE?
         for (var i = 0; i < listToUse.length; i++) {
             if (angleIsWithin(angle, listToUse[i])) {
                 //console.log("Shifting needed!");
@@ -656,9 +647,17 @@ console.log("Running Apos Bot!");
                 var dist2 = (angle2 - angle).mod(360);
 
                 if (dist1 < dist2) {
-                    return angle1;
+                    if (angleIsWithin(angle1, range)) {
+                        return angle1;
+                    } else {
+                        return angle2;
+                    }
                 } else {
-                    return angle2;
+                    if (angleIsWithin(angle2, range)) {
+                        return angle2;
+                    } else {
+                        return angle1;
+                    }
                 }
             }
         }
@@ -697,6 +696,7 @@ console.log("Running Apos Bot!");
                     var allPossibleViruses = getAllViruses(player[k]);
 
                     var badAngles = [];
+                    var obstacleList = [];
 
                     var isSafeSpot = true;
                     var isMouseSafe = true;
@@ -709,20 +709,32 @@ console.log("Running Apos Bot!");
 
                         var enemyDistance = computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, player[k].x, player[k].y);
 
+                        var splitDangerDistance = allPossibleThreats[i].size + splitDistance;
+
+                        var normalDangerDistance = Math.max(allPossibleThreats[i].size + player[k].size, allPossibleThreats[i].size + 150);
+
+                        var shiftDistance = player[k].size * 3;
+
                         //console.log("Found distance.");
 
+                        var enemyCanSplit = canSplit(player[k], allPossibleThreats[i]);
+                        
                         for (var j = clusterAllFood.length - 1; j >= 0 ; j--) {
-                            var secureDistance = (canSplit(player[k], allPossibleThreats[i]) ? splitDistance : player[k].size*2) + allPossibleThreats[i].size;
+                            var secureDistance = (enemyCanSplit ? splitDistance : player[k].size) + allPossibleThreats[i].size;
                             if (computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, clusterAllFood[j][0], clusterAllFood[j][1]) < secureDistance)
                                 clusterAllFood.splice(j, 1);
                         }
 
                         //console.log("Removed some food.");
 
-                        if (canSplit(player[k], allPossibleThreats[i])) {
-                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, allPossibleThreats[i].size + splitDistance, 0);
+                        if (enemyCanSplit) {
+                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, splitDangerDistance, 0);
+                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, splitDangerDistance + shiftDistance, 6);
+                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, splitDangerDistance + shiftDistance / 3, 2);
                         } else {
-                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, allPossibleThreats[i].size + player[k].size + player[k].size, 3);
+                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, normalDangerDistance, 3);
+                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, normalDangerDistance + shiftDistance, 6);
+                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, normalDangerDistance + shiftDistance / 3, 2);
                         }
 
                         if (allPossibleThreats[i].danger && f.getLastUpdate() - allPossibleThreats[i].dangerTimeOut > 1000) {
@@ -730,20 +742,35 @@ console.log("Running Apos Bot!");
                             allPossibleThreats[i].danger = false;
                         }
 
-                        if ((canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + splitDistance + player[k].size) || (!canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + player[k].size + player[k].size)) {
+                        /*if ((enemyCanSplit && enemyDistance < splitDangerDistance) ||
+                            (!enemyCanSplit && enemyDistance < normalDangerDistance)) {
 
                             allPossibleThreats[i].danger = true;
                             allPossibleThreats[i].dangerTimeOut = f.getLastUpdate();
-                        }
+                        }*/
 
                         //console.log("Figured out who was important.");
 
-                        if ((canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + splitDistance + player[k].size) || (!canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + player[k].size) || allPossibleThreats[i].danger) {
+                        if ((enemyCanSplit && enemyDistance < splitDangerDistance) || (enemyCanSplit && allPossibleThreats[i].danger)) {
 
-                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
+                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i, splitDangerDistance));
 
-                            //drawPoint(lineLeft[0], lineLeft[1], 0, "Left 0 - " + i);
-                            //drawPoint(lineRight[0], lineRight[1], 0, "Right 1 - " + i);
+                        } else if ((!enemyCanSplit && enemyDistance < normalDangerDistance) || (!enemyCanSplit && allPossibleThreats[i].danger)) {
+
+                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i, normalDangerDistance));
+
+                        } else if (enemyCanSplit && enemyDistance < splitDangerDistance + shiftDistance) {
+                            var tempOb = getAngleRange(player[k], allPossibleThreats[i], i, splitDangerDistance + shiftDistance / 3);
+                            var angle1 = tempOb[0];
+                            var angle2 = rangeToAngle(tempOb);
+
+                            obstacleList.push([[angle1, true], [angle2, false]]);
+                        } else if (!enemyCanSplit && enemyDistance < normalDangerDistance + shiftDistance) {
+                            var tempOb = getAngleRange(player[k], allPossibleThreats[i], i, normalDangerDistance + shiftDistance / 3);
+                            var angle1 = tempOb[0];
+                            var angle2 = rangeToAngle(tempOb);
+
+                            obstacleList.push([[angle1, true], [angle2, false]]);
                         }
                         //console.log("Done with enemy: " + i);
                     }
@@ -753,14 +780,19 @@ console.log("Running Apos Bot!");
                     var goodAngles = [];
                     var stupidList = [];
 
-                    var obstacleList = [];
+                    for (var i = 0; i < allPossibleViruses.length; i++) {
+                        drawCircle(allPossibleViruses[i].x, allPossibleViruses[i].y, player[k].size, 3);
+                        drawCircle(allPossibleViruses[i].x, allPossibleViruses[i].y, player[k].size * 2, 6);
+                    }
 
                     for (var i = 0; i < allPossibleViruses.length; i++) {
-                        var tempOb = getAngleRange(player[k], allPossibleViruses[i], i);
-                        var angle1 = tempOb[0];
-                        var angle2 = rangeToAngle(tempOb);
-                        drawCircle(allPossibleViruses[i].x, allPossibleViruses[i].y, player[k].size, 6);
-                        obstacleList.push([[angle1, true], [angle2, false]]);
+                        var virusDistance = computeDistance(allPossibleViruses[i].x, allPossibleViruses[i].y, player[k].x, player[k].y);
+                        if (virusDistance < (player[k].size * 2)) {
+                            var tempOb = getAngleRange(player[k], allPossibleViruses[i], i, player[k].size);
+                            var angle1 = tempOb[0];
+                            var angle2 = rangeToAngle(tempOb);
+                            obstacleList.push([[angle1, true], [angle2, false]]);
+                        }
                     }
 
                     if (badAngles.length > 0) {
@@ -784,7 +816,7 @@ console.log("Running Apos Bot!");
 
                     for (var i = 0; i < stupidList.length; i++) {
                         //console.log("Adding to sorted: " + stupidList[i][0][0] + ", " + stupidList[i][1][0]);
-                        sortedInterList = addAngle(sortedInterList, stupidList[i]);
+                        sortedInterList = addAngle(sortedInterList, stupidList[i])
 
                         if (sortedInterList.length == 0) {
                             break;
@@ -792,7 +824,7 @@ console.log("Running Apos Bot!");
                     }
 
                     for (var i = 0; i < obstacleList.length; i++) {
-                        sortedObList = addAngle(sortedObList, obstacleList[i]);
+                        sortedObList = addAngle(sortedObList, obstacleList[i])
 
                         if (sortedObList.length == 0) {
                             break;
@@ -854,7 +886,19 @@ console.log("Running Apos Bot!");
                         drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
                     }
 
-                    if (goodAngles.length > 0) {
+                    if (followMouse && goodAngles.length == 0) {
+                        //This is the follow the mouse mode
+                        var distance = computeDistance(player[k].x, player[k].y, tempPoint[0], tempPoint[1]);
+
+                        var shiftedAngle = shiftAngle(obstacleAngles, getAngle(tempPoint[0], tempPoint[1], player[k].x, player[k].y), [0, 360]);
+
+                        var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
+
+                        tempMoveX = destination[0];
+                        tempMoveY = destination[1];
+                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);
+
+                    } else if (goodAngles.length > 0) {
                         var bIndex = goodAngles[0];
                         var biggest = goodAngles[0][1];
                         for (var i = 1; i < goodAngles.length; i++) {
@@ -939,7 +983,7 @@ console.log("Running Apos Bot!");
     }
 
     function screenToGameY(y) {
-        return (y - getHeight() / 2) / getRatio() + getY();
+        return (y - getHeight() / 2) / getRatio() + getY();;
     }
 
     function drawPoint(x_1, y_1, drawColor, text) {

@@ -37,7 +37,8 @@ console.log("Running Apos Bot!");
 (function(f, g) {
     var splitDistance = 710;
     console.log("Apos Bot!");
-
+    var lastX = 0;
+    var lastY = 0;
     var targetX = 0;
     var targetY = 0;
     var lastAngle = 0;
@@ -876,7 +877,16 @@ console.log("Running Apos Bot!");
                         tempMoveX = line1[0];
                         tempMoveY = line1[1];
                     } else if (badAngles.length > 0 && goodAngles == 0) {
-                        //TODO: CODE TO HANDLE WHEN THERE IS NO GOOD ANGLE BUT THERE ARE ENEMIES AROUND!!!!!!!!!!!!!
+                        console.log("Keep running!");
+                        var distance = computeDistance(player[k].x, player[k].y, lastX, lastY);
+
+                        var shiftedAngle = shiftAngle(obstacleAngles, getAngle(lastX,lastY, player[k].x, player[k].y), [0, 360]);
+
+                        var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
+
+                        tempMoveX = destination[0];
+                        tempMoveY = destination[1];
+                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 3);
                     } else if (clusterAllFood.length > 0) {
                         for (var i = 0; i < clusterAllFood.length; i++) {
                             //console.log("mefore: " + clusterAllFood[i][2]);
@@ -923,6 +933,16 @@ console.log("Running Apos Bot!");
                         drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);
                     } else {
                         //If there are no enemies around and no food to eat.
+                        console.log("Keep going!");
+                        var distance = computeDistance(player[k].x, player[k].y, lastX, lastY);
+
+                        var shiftedAngle = shiftAngle(obstacleAngles, getAngle(lastX,lastY, player[k].x, player[k].y), [0, 360]);
+
+                        var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
+
+                        tempMoveX = destination[0];
+                        tempMoveY = destination[1];
+                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);                        
                     }
 
                     drawPoint(tempPoint[0], tempPoint[1], tempPoint[2], "");
@@ -938,6 +958,8 @@ console.log("Running Apos Bot!");
 
             //console.log("______Never lied ever in my life.");
 
+            lastX = tempMoveX;
+            lastY = tempMoveY;
             return [tempMoveX, tempMoveY];
         }
     }

@@ -904,7 +904,7 @@ console.log("Running Apos Bot!");
 								}
 							}
 						}
-                        perfectAngle = shiftAngle(obstacleAngles, perfectAngle, bIndex);?bindex
+                        perfectAngle = shiftAngle(obstacleAngles, perfectAngle, bIndex);
 
                         var line1 = followAngle(perfectAngle, player[k].x, player[k].y, dist);
 

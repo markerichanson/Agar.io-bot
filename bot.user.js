@@ -39,6 +39,7 @@ console.log("Running Apos Bot!");
     console.log("Apos Bot!");
     var lastX = 0;
     var lastY = 0;
+	var lastOthers = {};
 
     if (f.botList == null) {
         f.botList = [];
@@ -140,6 +141,30 @@ console.log("Running Apos Bot!");
             }
 
             if (!isMe) {
+                return true;
+            }
+            return false;
+        }, interNodes);
+
+        return dotList;
+    }
+
+    function getAllOthers(blob) {
+        var dotList = [];
+        var player = getPlayer();
+        var interNodes = getMemoryCells();
+
+        dotList = getListBasedOnFunction(function(element) {
+            var isMe = false;
+
+            for (var i = 0; i < player.length; i++) {
+                if (interNodes[element].id == player[i].id) {
+                    isMe = true;
+                    break;
+                }
+            }
+
+            if (!isMe && (!interNodes[element].d )) {
                 return true;
             }
             return false;
@@ -689,6 +714,20 @@ console.log("Running Apos Bot!");
                 var allPossibleThreats = getAllThreats(smallestPlayer);
                 var allPossibleViruses = getAllViruses(smallestPlayer);
 */
+				var allOthers = getAllOthers (player[0]);
+				for (var l = 0; l < allOthers.length; l++) {
+				    if (lastOthers.hasOwnProperty(allOthers[l].id) {
+						var distance = 10*computeDistance(lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],allOthers[l].x, allOthers[l].y);
+						var angle = getAngle (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],allOthers[l].x, allOthers[l].y);
+						vat temp = followAngle(angle, lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1], distance);
+						drawLine (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],temp[0],temp[1],5);
+					}
+				}
+				lastOthers = {};
+				for (var l = 0; l < allOthers.length; l++) {
+					lastOthers[allOthers[l].id] = [allOthers[l].x, allOthers[l].y];
+				}
+
                 for (var k = 0; k < player.length; k++) {
 
                     //console.log("Working on blob: " + k);

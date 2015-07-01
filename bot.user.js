@@ -33,13 +33,14 @@ $.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/bot.user
 
 
 
-console.log("Running Apos Bot!");
+console.log("Running MEH Apos Bot!");
 (function(f, g) {
     var splitDistance = 710;
     console.log("Apos Bot!");
     var lastX = 0;
     var lastY = 0;
 	var lastOthers = {};
+    var priorUpdate = 0;
 
     if (f.botList == null) {
         f.botList = [];
@@ -714,20 +715,27 @@ console.log("Running Apos Bot!");
                 var allPossibleThreats = getAllThreats(smallestPlayer);
                 var allPossibleViruses = getAllViruses(smallestPlayer);
 */
+                //console.log("lastOthers before: "+lastOthers);
+                //console.log("tn-1:"+priorUpdate);
+                //console.log("tn:"+getUpdate());
+                //console.log("delta t:"+(getUpdate()-priorUpdate));
+
 				var allOthers = getAllOthers (player[0]);
 				for (var l = 0; l < allOthers.length; l++) {
-				    if (lastOthers.hasOwnProperty(allOthers[l].id) {
-						var distance = 10*computeDistance(lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],allOthers[l].x, allOthers[l].y);
-						var angle = getAngle (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],allOthers[l].x, allOthers[l].y);
-						vat temp = followAngle(angle, lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1], distance);
-						drawLine (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],temp[0],temp[1],5);
+                    //console.log("allOthers["+l+"].id: "+allOthers[l].id);
+				    if (lastOthers.hasOwnProperty(allOthers[l].id)) {
+						var distance = 100*computeDistance(lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],allOthers[l].x, allOthers[l].y)/(getUpdate()-priorUpdate);
+						var angle = getAngle (allOthers[l].x, allOthers[l].y, lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1]);
+						var temp = followAngle(angle, allOthers[l].x, allOthers[l].y, distance);
+						drawLine (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],temp[0],temp[1],15);
 					}
 				}
 				lastOthers = {};
+                priorUpdate = getUpdate();
 				for (var l = 0; l < allOthers.length; l++) {
 					lastOthers[allOthers[l].id] = [allOthers[l].x, allOthers[l].y];
+                    //console.log("lastOthers after: ["+l+"].id: "+allOthers[l].id+": "+lastOthers[allOthers[l].id]);
 				}
-
                 for (var k = 0; k < player.length; k++) {
 
                     //console.log("Working on blob: " + k);

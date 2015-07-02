@@ -41,6 +41,8 @@ console.log("Running MEH Apos Bot!");
     var lastY = 0;
 	var lastOthers = {};
     var priorUpdate = 0;
+    var lastPosX = 0;
+    var lastPosY = 0;
 
     if (f.botList == null) {
         f.botList = [];
@@ -692,15 +694,40 @@ console.log("Running MEH Apos Bot!");
         var player = getPlayer();
         var interNodes = getMemoryCells();
 
-        if ( /*!toggle*/ 1) {
-            var useMouseX = (getMouseX() - getWidth() / 2 + getX() * getRatio()) / getRatio();
-            var useMouseY = (getMouseY() - getHeight() / 2 + getY() * getRatio()) / getRatio();
-            tempPoint = [useMouseX, useMouseY, 1];
+        var useMouseX = (getMouseX() - getWidth() / 2 + getX() * getRatio()) / getRatio();
+        var useMouseY = (getMouseY() - getHeight() / 2 + getY() * getRatio()) / getRatio();
+	    tempPoint = [useMouseX, useMouseY, 1];
 
-            var tempMoveX = getPointX();
-            var tempMoveY = getPointY();
+        var tempMoveX = getPointX();
+        var tempMoveY = getPointY();
+
+        if ( !followMouse ) {
 
             if (player.length > 0) {
+                if (false && (priorUpdate == 0) && (player.length > 1)) {
+                    seen = [];
+                    console.log("player:"+JSON.stringify(player, function(key, val) {
+                          if (val != null && typeof val == "object") {
+                              if (seen.indexOf(val) >= 0) {
+                                  return;
+                              }
+                              seen.push(val);
+                          }
+                          return val;
+                      }));
+                    seen = [];
+                    console.log("interNodes:"+JSON.stringify(interNodes, function(key, val) {
+                          if (val != null && typeof val == "object") {
+                              if (seen.indexOf(val) >= 0) {
+                                  return;
+                              }
+                              seen.push(val);
+                          }
+                          return val;
+                      }));
+					priorUpdate = 1;
+                }
+               //console.log("internodes[0]"+interNodes[0]);
 /*
    can do this, but means bigger sub blobs won't see all that is food for them.
    similarly for threats and viruses.
@@ -715,12 +742,9 @@ console.log("Running MEH Apos Bot!");
                 var allPossibleThreats = getAllThreats(smallestPlayer);
                 var allPossibleViruses = getAllViruses(smallestPlayer);
 */
-                //console.log("lastOthers before: "+lastOthers);
-                //console.log("tn-1:"+priorUpdate);
-                //console.log("tn:"+getUpdate());
-                //console.log("delta t:"+(getUpdate()-priorUpdate));
 
 				var allOthers = getAllOthers (player[0]);
+/*
 				for (var l = 0; l < allOthers.length; l++) {
                     //console.log("allOthers["+l+"].id: "+allOthers[l].id);
 				    if (lastOthers.hasOwnProperty(allOthers[l].id)) {
@@ -730,42 +754,39 @@ console.log("Running MEH Apos Bot!");
 						drawLine (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],temp[0],temp[1],15);
 					}
 				}
-				lastOthers = {};
-                priorUpdate = getUpdate();
-				for (var l = 0; l < allOthers.length; l++) {
-					lastOthers[allOthers[l].id] = [allOthers[l].x, allOthers[l].y];
-                    //console.log("lastOthers after: ["+l+"].id: "+allOthers[l].id+": "+lastOthers[allOthers[l].id]);
-				}
+*/
+
+/*
+Pseudo-code for rewrite:
+1. compute all the bad angles etc as before.
+2. rank the enemies based on a few factors.
+	a. time to collision (distance/(observed speed) OR dist to predict intersection of our current velocities)
+		lower is higher priority
+	b. much bigger than me
+		much bigger (TBD "much") less likely to be interested.
+	maybe just 2a...
+3. if no good angles exist, disregard from least important to most until a good angle shows up.
+4. hunt for food within that good angle
+
+
+*/
                 for (var k = 0; k < player.length; k++) {
-
-                    //console.log("Working on blob: " + k);
-
                     drawCircle(player[k].x, player[k].y, player[k].size + splitDistance, 5);
-                    //drawPoint(player[0].x, player[0].y - player[0].size, 3, "" + Math.floor(player[0].x) + ", " + Math.floor(player[0].y));
-
-                    //var allDots = processEverything(interNodes);
 
                     var allPossibleFood = null;
                     allPossibleFood = getAllFood(player[k]); // #1
 
                     var allPossibleThreats = getAllThreats(player[k]);
-                    //console.log("Internodes: " + interNodes.length + " Food: " + allPossibleFood.length + " Threats: " + allPossibleThreats.length);
                     var allPossibleViruses = getAllViruses(player[k]);
 
                     var badAngles = [];
 
-                    var isSafeSpot = true;
-                    var isMouseSafe = true;
-
                     var clusterAllFood = clusterFood(allPossibleFood, player[k].size);
-
-                    //console.log("Looking for enemies!");
 
                     for (var i = 0; i < allPossibleThreats.length; i++) {
 
                         var enemyDistance = computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, player[k].x, player[k].y);
-
-                        //console.log("Found distance.");
+//						var previousDistance = computeDistance(lastOthers[allOthers[l].id][0],lastOthers[allPossibleThreats[l].id][1],player[k].x, player[k].y)
 
                         for (var j = clusterAllFood.length - 1; j >= 0 ; j--) {
                             var secureDistance = (canSplit(player[k], allPossibleThreats[i]) ? splitDistance : player[k].size*2) + allPossibleThreats[i].size;
@@ -773,38 +794,18 @@ console.log("Running MEH Apos Bot!");
                                 clusterAllFood.splice(j, 1);
                         }
 
-                        //console.log("Removed some food.");
-
                         if (canSplit(player[k], allPossibleThreats[i])) {
                             drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, allPossibleThreats[i].size + splitDistance, 0);
+                            if (enemyDistance < allPossibleThreats[i].size + splitDistance + player[k].size) {
+	                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
+							}
                         } else {
                             drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, allPossibleThreats[i].size + player[k].size + player[k].size, 3);
+                            if (enemyDistance < allPossibleThreats[i].size + player[k].size + player[k].size) {
+	                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
+							}
                         }
-
-                        if (allPossibleThreats[i].danger && f.getLastUpdate() - allPossibleThreats[i].dangerTimeOut > 1000) {
-
-                            allPossibleThreats[i].danger = false;
-                        }
-
-                        if ((canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + splitDistance + player[k].size) || (!canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + player[k].size + player[k].size)) {
-
-                            allPossibleThreats[i].danger = true;
-                            allPossibleThreats[i].dangerTimeOut = f.getLastUpdate();
-                        }
-
-                        //console.log("Figured out who was important.");
-
-                        if ((canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + splitDistance + player[k].size) || (!canSplit(player[k], allPossibleThreats[i]) && enemyDistance < allPossibleThreats[i].size + player[k].size) || allPossibleThreats[i].danger) {
-
-                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
-
-                            //drawPoint(lineLeft[0], lineLeft[1], 0, "Left 0 - " + i);
-                            //drawPoint(lineRight[0], lineRight[1], 0, "Right 1 - " + i);
-                        }
-                        //console.log("Done with enemy: " + i);
                     }
-
-                    //console.log("Done looking for enemies!");
 
                     var goodAngles = [];
                     var stupidList = [];
@@ -830,16 +831,10 @@ console.log("Running MEH Apos Bot!");
                         stupidList.push([[angle1, true], [angle2, false]]);
                     }
 
-                    //stupidList.push([[45, true], [135, false]]);
-                    //stupidList.push([[10, true], [200, false]]);
-
-                    //console.log("Added random noob stuff.");
-
                     var sortedInterList = [];
                     var sortedObList = [];
 
                     for (var i = 0; i < stupidList.length; i++) {
-                        //console.log("Adding to sorted: " + stupidList[i][0][0] + ", " + stupidList[i][1][0]);
                         sortedInterList = addAngle(sortedInterList, stupidList[i]);
 
                         if (sortedInterList.length == 0) {
@@ -890,8 +885,6 @@ console.log("Running MEH Apos Bot!");
 
                         drawArc(line1[0], line1[1], line2[0], line2[1], player[k].x, player[k].y, 1);
 
-                        //drawPoint(player[0].x, player[0].y, 2, "");
-
                         drawPoint(line1[0], line1[1], 0, "" + i + ": 0");
                         drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
                     }
@@ -904,15 +897,12 @@ console.log("Running MEH Apos Bot!");
 
                         drawArc(line1[0], line1[1], line2[0], line2[1], player[k].x, player[k].y, 6);
 
-                        //drawPoint(player[0].x, player[0].y, 2, "");
-
                         drawPoint(line1[0], line1[1], 0, "" + i + ": 0");
                         drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
                     }
 
 					for (var i = 0; i < clusterAllFood.length; i++) {
 						//This is the cost function. Higher is better.
-
 						var clusterAngle = getAngle(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
 
 						clusterAllFood[i][2] = clusterAllFood[i][2] * 6 - computeDistance(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
@@ -941,7 +931,6 @@ console.log("Running MEH Apos Bot!");
 						var food = 0;
 						var dist = 300;
 						for (var i = 0; i < clusterAllFood.length; i++) {
-
 							clusterBearing = clusterAllFood[i][3] + (RHS>clusterAllFood[i][3]&&LHS>359?360:0);
 							if ((clusterBearing >= (RHS + FOOD_ANGLE_TOLERANCE)) && (clusterBearing <= (LHS - FOOD_ANGLE_TOLERANCE))) {
 								if (clusterAllFood[i][2]>food) {
@@ -959,11 +948,9 @@ console.log("Running MEH Apos Bot!");
                         tempMoveX = line1[0];
                         tempMoveY = line1[1];
                     } else if (badAngles.length > 0 && goodAngles == 0) {
-                        console.log("Keep running!");
+						// enimies exist but no clear path
                         var distance = computeDistance(player[k].x, player[k].y, lastX, lastY);
-
                         var shiftedAngle = shiftAngle(obstacleAngles, getAngle(lastX,lastY, player[k].x, player[k].y), [0, 360]);
-
                         var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
 
                         tempMoveX = destination[0];
@@ -980,13 +967,8 @@ console.log("Running MEH Apos Bot!");
 							}
 						}
 
-
-                        //console.log("Best Value: " + clusterAllFood[bestFoodI][2]);
-
                         var distance = computeDistance(player[k].x, player[k].y, clusterAllFood[bestFoodI][0], clusterAllFood[bestFoodI][1]);
-
                         var shiftedAngle = shiftAngle(obstacleAngles, getAngle(clusterAllFood[bestFoodI][0], clusterAllFood[bestFoodI][1], player[k].x, player[k].y), [0, 360]);
-
                         var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
 
                         tempMoveX = destination[0];
@@ -994,7 +976,6 @@ console.log("Running MEH Apos Bot!");
                         drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);
                     } else {
                         //If there are no enemies around and no food to eat.
-                        console.log("Keep going!");
                         var distance = computeDistance(player[k].x, player[k].y, lastX, lastY);
 
                         var shiftedAngle = shiftAngle(obstacleAngles, getAngle(lastX,lastY, player[k].x, player[k].y), [0, 360]);
@@ -1007,18 +988,17 @@ console.log("Running MEH Apos Bot!");
                     }
 
                     drawPoint(tempPoint[0], tempPoint[1], tempPoint[2], "");
-                    //drawPoint(tempPoint[0], tempPoint[1], tempPoint[2], "" + Math.floor(computeDistance(tempPoint[0], tempPoint[1], I, J)));
-                    //drawLine(tempPoint[0], tempPoint[1], player[0].x, player[0].y, 6);
-                    //console.log("Slope: " + slope(tempPoint[0], tempPoint[1], player[0].x, player[0].y) + " Angle: " + getAngle(tempPoint[0], tempPoint[1], player[0].x, player[0].y) + " Side: " + (getAngle(tempPoint[0], tempPoint[1], player[0].x, player[0].y) - 90).mod(360));
                     tempPoint[2] = 1;
-
-                    //console.log("Done working on blob: " + i);
                 }
+				lastOthers = {};
+				for (var l = 0; l < allOthers.length; l++) {
+					lastOthers[allOthers[l].id] = [allOthers[l].x, allOthers[l].y];
+				}
             }
-            //console.log("MOVING RIGHT NOW!");
 
-            //console.log("______Never lied ever in my life.");
-
+            lastPosX = player[0].x;
+            lastPosY = player[0].y;
+            priorUpdate = getUpdate();
             lastX = tempMoveX;
             lastY = tempMoveY;
             return [tempMoveX, tempMoveY];

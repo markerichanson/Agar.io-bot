@@ -20,8 +20,8 @@ $.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/launcher
 	latestVersion = latestVersion.substring(latestVersion.indexOf("// @version")+11,latestVersion.indexOf("// @grant"));
 
 	latestVersion = parseFloat(latestVersion + 0.0000);
-    var myVersion = parseFloat(GM_info.script.version + 0.0000); 
-	
+    var myVersion = parseFloat(GM_info.script.version + 0.0000);
+
 	if(latestVersion > myVersion)
 	{
 		alert("Update Available for launcher.user.js: V" + latestVersion + "\nGet the latest version from the GitHub page.");
@@ -530,7 +530,7 @@ console.log("Running Bot Launcher!");
         console.log("Dead: " + ~~(getCurrentScore() / 100));
         apos('send', 'pageview');
     }
-    
+
     if (getPlayer().length == 0) {
         console.log("Revive");
         setNick(originalName);
@@ -975,7 +975,7 @@ console.log("Running Bot Launcher!");
   dArc = [],
   dText = [],
   lines = [],
-  names = ["NotReallyABot"],
+  names = ["Or am I?"],
   originalName = names[Math.floor(Math.random() * names.length)],
   sessionScore = 0,
   serverIP = "",
@@ -1918,7 +1918,7 @@ window.refreshTwitch = function() {
           cache: false,
           dataType: "jsonp"
         }).done(function (data) {
-            if (data["stream"] == null) { 
+            if (data["stream"] == null) {
                 //console.log("Apostolique is not online!");
                 window.setMessage([]);
                 window.onmouseup = function () {

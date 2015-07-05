@@ -35,6 +35,12 @@ console.log("Running Bot Launcher!");
 
   //UPDATE
   function keyAction(e) {
+    if (90 == e.keyCode) {
+		//  debug dump to log
+	    if (getPlayer().length > 0) {
+	        window.botList[botIndex][1](true);
+		}
+    }
     if (84 == e.keyCode) {
       console.log("Toggle");
       toggle = !toggle;
@@ -528,6 +534,7 @@ console.log("Running Bot Launcher!");
     //UPDATE
     if (getPlayer().length == 0 && !reviving && ~~(getCurrentScore() / 100) > 0) {
         console.log("Dead: " + ~~(getCurrentScore() / 100));
+        window.botList[botIndex][1](true);
         apos('send', 'pageview');
     }
 

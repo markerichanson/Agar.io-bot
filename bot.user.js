@@ -5,6 +5,7 @@
 // @version     3.31_meh4
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
+// @require		https://github.com/maxkueng/victor/raw/master/build/victor.js
 // ==/UserScript==
 
 
@@ -31,18 +32,27 @@ $.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/bot.user
 	console.log('Current bot.user.js Version: ' + myVersion + " on Github: " + latestVersion);
 });
 
+ Record = function (maxLength) {
+ 	this.maxLength = maxLength;
+ 	this.records = [];
 
+ 	this.push = function (item) {
+ 		this.records.push(item);
+ 		if (this.records.length > maxLength) this.records.shift();
+ 	}
+ }
 
 console.log("Running MEH Apos Bot!");
 (function(f, g) {
     var splitDistance = 710;
     console.log("Apos Bot!");
-    var lastX = 0;
-    var lastY = 0;
+    var MAX_HISTORY = 100;
 	var lastOthers = {};
-    var priorUpdate = 0;
-    var lastPosX = 0;
-    var lastPosY = 0;
+    var positionRecord = new Record(MAX_HISTORY);
+    var targetRecord = new Record(MAX_HISTORY);
+    var updateRecord = new Record(MAX_HISTORY);
+	var foodTargetRecord = new Record(MAX_HISTORY);
+	var worstThreatRecord = new Record(MAX_HISTORY);
 
     if (f.botList == null) {
         f.botList = [];
@@ -119,7 +129,8 @@ console.log("Running MEH Apos Bot!");
     }
 
     function canSplit(player1, player2) {
-        return compareSize(player1, player2, 2.30) && !compareSize(player1, player2, 9);
+        // (p1*p1*2.3<p2*p2<p1*p1*9)
+        return compareSize(player1, player2, 2.30) ;//&& !compareSize(player1, player2, 9);
     }
 
     function processEverything(listToUse) {
@@ -254,18 +265,19 @@ console.log("Running MEH Apos Bot!");
         return dotList;
     }
 
-    function clusterFood(foodList, blobSize) {
+    function clusterFood(foodList, player) {
         var clusters = [];
         var addedCluster = false;
 
-        //1: x
-        //2: y
-        //3: size or value
-        //4: Angle, not set here.
+        //0: x
+        //1: y
+        //2: size or value
+        //3: Angle, not set here.
+        //4: food list indices of items clustered.
 
         for (var i = 0; i < foodList.length; i++) {
             for (var j = 0; j < clusters.length; j++) {
-                if (computeDistance(foodList[i][0], foodList[i][1], clusters[j][0], clusters[j][1]) < blobSize * 1.5) {
+                if (computeDistance(foodList[i][0], foodList[i][1], clusters[j][0], clusters[j][1]) < player.size * 1.5) {
                     totalSize = clusters[j][2] + foodList[i][2];
                     clusters[j][0] = (foodList[i][2]*foodList[i][0] + clusters[j][2]*clusters[j][0]) / totalSize;
                     clusters[j][1] = (foodList[i][2]*foodList[i][1] + clusters[j][2]*clusters[j][1]) / totalSize;
@@ -281,6 +293,20 @@ console.log("Running MEH Apos Bot!");
             }
             addedCluster = false;
         }
+
+		for (var i = 0; i < clusters.length; i++) {
+			//This is the cost function. Higher is better.
+			var clusterAngle = getAngle(clusters[i][0], clusters[i][1], player.x, player.y);
+			clusters[i][3] = clusterAngle;
+			// results are extremely sensitive to the utility function (duh!).
+			// the logic of this one is
+			// 0.  bigger clusters (in mass and members) are better, but the incremental betterness falls
+			//     as the gross product of mass and membership grows (hence "log").
+			// 1.  farther is worse, and it gets worse exponentially as distance grows.
+			// Changing the base in either part might have interesting results.
+			clusters[i][2] = Math.log(clusters[i][2]*clusters[i][4].length)/(1.1^computeDistance(clusters[i][0], clusters[i][1], player.x, player.y));
+		}
+
         return clusters;
     }
 
@@ -499,18 +525,19 @@ console.log("Running MEH Apos Bot!");
         ];
     }
 
+/* not used and appears to rely on some iffy variable scoping
     function invertAngle(range) {
         var angle1 = rangeToAngle(badAngles[i]);
         var angle2 = (badAngles[i][0] - angle1).mod(360);
         return [angle1, angle2];
     }
-
+*/
     function addWall(listToUse, blob) {
         if (blob.x < f.getMapStartX() + 1000) {
             //LEFT
             //console.log("Left");
 
-            listToUse.push([[135, true], [225, false]]);
+            listToUse.unshift([[135, true], [225, false]]);
 
             var lineLeft = followAngle(135, blob.x, blob.y, 190 + blob.size);
             var lineRight = followAngle(225, blob.x, blob.y, 190 + blob.size);
@@ -522,7 +549,7 @@ console.log("Running MEH Apos Bot!");
             //TOP
             //console.log("TOP");
 
-            listToUse.push([[225, true], [315, false]]);
+            listToUse.unshift([[225, true], [315, false]]);
 
             var lineLeft = followAngle(225, blob.x, blob.y, 190 + blob.size);
             var lineRight = followAngle(315, blob.x, blob.y, 190 + blob.size);
@@ -534,7 +561,7 @@ console.log("Running MEH Apos Bot!");
             //RIGHT
             //console.log("RIGHT");
 
-            listToUse.push([[315, true], [45, false]]);
+            listToUse.unshift([[315, true], [45, false]]);
 
             var lineLeft = followAngle(315, blob.x, blob.y, 190 + blob.size);
             var lineRight = followAngle(45, blob.x, blob.y, 190 + blob.size);
@@ -546,7 +573,7 @@ console.log("Running MEH Apos Bot!");
             //BOTTOM
             //console.log("BOTTOM");
 
-            listToUse.push([[45, true], [135, false]]);
+            listToUse.unshift([[45, true], [135, false]]);
 
             var lineLeft = followAngle(45, blob.x, blob.y, 190 + blob.size);
             var lineRight = followAngle(135, blob.x, blob.y, 190 + blob.size);
@@ -690,7 +717,42 @@ console.log("Running MEH Apos Bot!");
         return angle;
     }
 
-    function findDestination(followMouse) {
+	function lineSegmentIntersectsCircle (
+		x0, y0,
+		x1, y1,
+		cx, cy, radius
+	  ) { // http://doswa.com/2009/07/13/circle-segment-intersectioncollision.html
+		// Normalize to use x0,y0 as the origin
+		var x0V = new Victor (x0, y0);
+		var x1V = new Victor (x1, y1);
+		var cV = new Victor (cx, cy);
+		x1V = x1V.subtract(x0V);
+		cV = cV.subtract(x0V)
+		var x1UnitV = new Victor (x1, y1).normalize();
+		// Project center vector onto x1 vector
+		projectionLength = cV.dot(x1UnitV);
+
+		var closest = null;
+		if (projectionLength < 0) {
+			closest = new Victor (0, 0); // means player is in the circle... probably need to ignore this case
+		}
+		else if (projectionLength > x1V.length()) {
+			closest = new Victor (x1, y1);;
+		} else {
+			closest = new Victor (x1UnitV.x*projectionLength,x1UnitV.y*projectionLength);
+		}
+		return (closest.add(x0V));
+	}
+
+
+	function Threat (i, distance, splitThreat, threatRange) {
+		this.i = i;
+		this.distance = distance;
+		this.splitThreat = splitThreat;
+		this.threatRange = threatRange;
+	}
+
+    function findDestination(debugDump) {
         var player = getPlayer();
         var interNodes = getMemoryCells();
 
@@ -701,63 +763,41 @@ console.log("Running MEH Apos Bot!");
         var tempMoveX = getPointX();
         var tempMoveY = getPointY();
 
-        if ( !followMouse ) {
+        if ( debugDump ) {
+			var toDumpList = {};
+			toDumpList["update"] = getUpdate();
+			toDumpList["updateRecord"] = updateRecord;
+			toDumpList["positionRecord"] = positionRecord;
+			toDumpList["targetRecord"] = targetRecord;
+			toDumpList["foodTargetRecord"] =  foodTargetRecord;
+			toDumpList["player"] =  player;
+			toDumpList["lastOthers"] =  lastOthers;
+			toDumpList["worstThreat"] =  worstThreatRecord;
+			if (player.length > 0) {
+				toDumpList["others"] =  getAllOthers (player[0]);
+				toDumpList["food"] =  getAllFood(player[0]);
+				toDumpList["viruses"] =  getAllViruses(player[0]);
+				toDumpList["threats"] =  getAllThreats(player[0]);
+			}
+			var seen = [];
+			console.log(JSON.stringify(toDumpList, function(key, val) {
+				  if (val != null && typeof val == "object") {
+					  if (seen.indexOf(val) >= 0) {
+						  return;
+					  }
+					  seen.push(val);
+				  }
+				  return val;
+			  }));
+		}
+		else {
 
             if (player.length > 0) {
-                if (false && (priorUpdate == 0) && (player.length > 1)) {
-                    seen = [];
-                    console.log("player:"+JSON.stringify(player, function(key, val) {
-                          if (val != null && typeof val == "object") {
-                              if (seen.indexOf(val) >= 0) {
-                                  return;
-                              }
-                              seen.push(val);
-                          }
-                          return val;
-                      }));
-                    seen = [];
-                    console.log("interNodes:"+JSON.stringify(interNodes, function(key, val) {
-                          if (val != null && typeof val == "object") {
-                              if (seen.indexOf(val) >= 0) {
-                                  return;
-                              }
-                              seen.push(val);
-                          }
-                          return val;
-                      }));
-					priorUpdate = 1;
-                }
-               //console.log("internodes[0]"+interNodes[0]);
-/*
-   can do this, but means bigger sub blobs won't see all that is food for them.
-   similarly for threats and viruses.
-
-	            var allPossibleFood = null;
-                allPossibleFood = getAllFood(player[0]);
-                var smallestPlayer = player[0];
-                for (var k = 1; k < player.length; k++) {
-					if (player[k].size < smallestPlayer.size) smallestPlayer = player[k];
-				}
-				var clusterAllFood = clusterFood(allPossibleFood, smallestPlayer);
-                var allPossibleThreats = getAllThreats(smallestPlayer);
-                var allPossibleViruses = getAllViruses(smallestPlayer);
-*/
 
 				var allOthers = getAllOthers (player[0]);
-/*
-				for (var l = 0; l < allOthers.length; l++) {
-                    //console.log("allOthers["+l+"].id: "+allOthers[l].id);
-				    if (lastOthers.hasOwnProperty(allOthers[l].id)) {
-						var distance = 100*computeDistance(lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],allOthers[l].x, allOthers[l].y)/(getUpdate()-priorUpdate);
-						var angle = getAngle (allOthers[l].x, allOthers[l].y, lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1]);
-						var temp = followAngle(angle, allOthers[l].x, allOthers[l].y, distance);
-						drawLine (lastOthers[allOthers[l].id][0],lastOthers[allOthers[l].id][1],temp[0],temp[1],15);
-					}
-				}
-*/
 
 /*
-Pseudo-code for rewrite:
+Pseudo-code for destination determination:
 1. compute all the bad angles etc as before.
 2. rank the enemies based on a few factors.
 	a. time to collision (distance/(observed speed) OR dist to predict intersection of our current velocities)
@@ -768,50 +808,23 @@ Pseudo-code for rewrite:
 3. if no good angles exist, disregard from least important to most until a good angle shows up.
 4. hunt for food within that good angle
 
-
+FFS:
+1. generalizing for multiple instances (when split)
+2. discounting food that is running away successfully.
 */
                 for (var k = 0; k < player.length; k++) {
                     drawCircle(player[k].x, player[k].y, player[k].size + splitDistance, 5);
 
-                    var allPossibleFood = null;
-                    allPossibleFood = getAllFood(player[k]); // #1
-
+                    var allPossibleFood = getAllFood(player[k]);
                     var allPossibleThreats = getAllThreats(player[k]);
                     var allPossibleViruses = getAllViruses(player[k]);
 
                     var badAngles = [];
-
-                    var clusterAllFood = clusterFood(allPossibleFood, player[k].size);
-
-                    for (var i = 0; i < allPossibleThreats.length; i++) {
-
-                        var enemyDistance = computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, player[k].x, player[k].y);
-//						var previousDistance = computeDistance(lastOthers[allOthers[l].id][0],lastOthers[allPossibleThreats[l].id][1],player[k].x, player[k].y)
-
-                        for (var j = clusterAllFood.length - 1; j >= 0 ; j--) {
-                            var secureDistance = (canSplit(player[k], allPossibleThreats[i]) ? splitDistance : player[k].size*2) + allPossibleThreats[i].size;
-                            if (computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, clusterAllFood[j][0], clusterAllFood[j][1]) < secureDistance)
-                                clusterAllFood.splice(j, 1);
-                        }
-
-                        if (canSplit(player[k], allPossibleThreats[i])) {
-                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, allPossibleThreats[i].size + splitDistance, 0);
-                            if (enemyDistance < allPossibleThreats[i].size + splitDistance + player[k].size) {
-	                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
-							}
-                        } else {
-                            drawCircle(allPossibleThreats[i].x, allPossibleThreats[i].y, allPossibleThreats[i].size + player[k].size + player[k].size, 3);
-                            if (enemyDistance < allPossibleThreats[i].size + player[k].size + player[k].size) {
-	                            badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
-							}
-                        }
-                    }
-
-                    var goodAngles = [];
                     var stupidList = [];
-
+					var realThreats = [];
                     var obstacleList = [];
 
+					// draw obstacle circles and build obstacle list
                     for (var i = 0; i < allPossibleViruses.length; i++) {
                         var tempOb = getAngleRange(player[k], allPossibleViruses[i], i);
                         var angle1 = tempOb[0];
@@ -820,28 +833,133 @@ Pseudo-code for rewrite:
                         obstacleList.push([[angle1, true], [angle2, false]]);
                     }
 
-                    if (badAngles.length > 0) {
-                        //NOTE: This is only bandaid wall code. It's not the best way to do it.
-                        stupidList = addWall(stupidList, player[k]);
+					// draw threat circles
+                    for (var i = 0; i < allPossibleThreats.length; i++) {
+						var splitThreat = canSplit(player[k], allPossibleThreats[i]);
+						var threatRange = splitThreat ? allPossibleThreats[i].size + splitDistance : allPossibleThreats[i].size + 2*player[k].size;
+						var drawColor   = splitThreat ? 0 : 3;
+						drawCircle (allPossibleThreats[i].x, allPossibleThreats[i].y, threatRange, drawColor);
                     }
 
-                    for (var i = 0; i < badAngles.length; i++) {
+					// rank threats
+                    for (var i = 0; i < allPossibleThreats.length; i++) {
+						/*
+						Is this guy a threat? Yes, iff:
+						- we are inside his threatRange
+						- we are moving toward each other as of last turn, i.e., velocities will lead to collision some day.
+
+						*/
+						var splitThreat = canSplit(player[k], allPossibleThreats[i])
+						// not entirely clear why this is different for split threats here vs for circle drawing... maybe double check earlier source...
+						// note extra "player[k].size" term for split threats here...
+						var threatRange = player[k].size + (splitThreat ? allPossibleThreats[i].size + splitDistance : allPossibleThreats[i].size + player[k].size);
+
+                    	var enemyDistance = computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, player[k].x, player[k].y);
+
+                    	if (enemyDistance < threatRange) {
+                            //badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
+                            realThreats.push(new Threat(i, enemyDistance, splitThreat, threatRange));
+						}
+                    }
+					// here's the crux of it... sort realThreats so least threatening are at the end.
+					realThreats.sort(function(a, b){return (a.distance - a.threatRange)-(b.distance-b.threatRange)})
+                    //NOTE: This is only bandaid wall code. It's not the best way to do it.
+                    if (realThreats.length>0) {
+						stupidList = addWall(stupidList, player[k]);
+						// record the worst threat for debug (if there are any real threats).
+						worstThreatRecord.push([getUpdate(), realThreats[0]]);
+					}
+					// ... build bad angle list based on real threats
+					for (var i = 0; i < realThreats.length; i++) {
+						badAngles.push(getAngleRange(player[k], allPossibleThreats[realThreats[i].i], i));
                         var angle1 = badAngles[i][0];
                         var angle2 = rangeToAngle(badAngles[i]);
                         stupidList.push([[angle1, true], [angle2, false]]);
-                    }
+					}
 
+					// find perfect angle... if there is none, remove the stupid angle associated with the least threat and repeat until we find one.
+					// ... see if any good angles exist
+                    var goodAngles = [];
                     var sortedInterList = [];
-                    var sortedObList = [];
+                    // Note we don't touch the realThreats list b/c the full list may yet come in handy for something below.
+                    // Alternatively, add ", realThreats.pop()" to the increment clause of the for loop.
+					for (;goodAngles.length == 0 && stupidList.length > 0; stupidList.pop()) {
+	                    for (var i = 0; i < stupidList.length; i++) {
+	                        sortedInterList = addAngle(sortedInterList, stupidList[i]);
 
-                    for (var i = 0; i < stupidList.length; i++) {
-                        sortedInterList = addAngle(sortedInterList, stupidList[i]);
+	                        if (sortedInterList.length == 0) {
+	                            break;
+	                        }
+	                    }
+	                    var offsetI = 0;
+	                    if (sortedInterList.length > 0 && sortedInterList[0][1]) {
+	                        offsetI = 1;
+	                    }
+	                    for (var i = 0; i < sortedInterList.length; i += 2) {
+	                        var angle1 = sortedInterList[(i + offsetI).mod(sortedInterList.length)][0];
+	                        var angle2 = sortedInterList[(i + 1 + offsetI).mod(sortedInterList.length)][0];
+	                        var diff = (angle2 - angle1).mod(360);
+	                        goodAngles.push([angle1, diff]);
+	                    }
+					}
+					// no good angles after all that means there are no bad angles either (by construction) so any angle is good.
+					// If there are any threats at all, the
+					if (goodAngles.length == 0) {
+						goodAngles.push([0,359]);
+						if (realThreats.length>0) console.log ("BAD ASSUMPTION SOMEWHERE... threats exist but no good angle was found!!");
+					}
+					else {
+						// draw good angles
+						for (var i = 0; i < goodAngles.length; i++) {
+							var line1 = followAngle(goodAngles[i][0], player[k].x, player[k].y, 100 + player[k].size);
+							var line2 = followAngle((goodAngles[i][0] + goodAngles[i][1]).mod(360), player[k].x, player[k].y, 100 + player[k].size);
+							drawLine(player[k].x, player[k].y, line1[0], line1[1], 1);
+							drawLine(player[k].x, player[k].y, line2[0], line2[1], 1);
 
-                        if (sortedInterList.length == 0) {
-                            break;
+							drawArc(line1[0], line1[1], line2[0], line2[1], player[k].x, player[k].y, 1);
+
+							drawPoint(line1[0], line1[1], 0, "" + i + ": 0");
+							drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
+						}
+					}
+					// would it be better to delete individual food items, then cluster rather than clustering firsT?
+                    var clusterAllFood = clusterFood(allPossibleFood, player[k]);
+
+					// purge food too close to  threats or with intervening threats
+					// we look here at all threats b/c we don't want to route across a threat even if we are
+					// currently outside its threat range.  Using realThreats would consider only those that
+					// are within their threat range.
+					//
+					// watching the bot play, it appears this misses some cases but not all
+					//
+                    for (var i = 0; i < allPossibleThreats.length; i++) {
+						var splitThreat = canSplit(player[k], allPossibleThreats[i])
+						var threatRange = player[k].size + (splitThreat ? allPossibleThreats[i].size + splitDistance : allPossibleThreats[i].size + 2*player[k].size);
+                        for (var j = clusterAllFood.length - 1; j >= 0 ; j--) {
+							// Does path to food pass too close to a threat?
+							// "Too close" means path to food crosses within the circle of threatRange (including being directly w/in that circle)
+
+							var closestV = lineSegmentIntersectsCircle (
+								player[k].x, player[k].y,
+								clusterAllFood[j][0], clusterAllFood[j][1],
+								allPossibleThreats[i].x, allPossibleThreats[i].y,
+								threatRange
+							)
+							if ((closestV.x == player[k].x) && (closestV.y == player[k].y)) {
+								// player[k] is in threat zone. Check if the would-be food is, too.  If so, it will be removed.
+								// If not, it will stay in consideration.
+								closestV.x = clusterAllFood[j][0];
+								closestV.y = clusterAllFood[j][1];
+							}
+							if (computeDistance (allPossibleThreats[i].x, allPossibleThreats[i].y,closestV.x,closestV.y) <= threatRange) {
+								clusterAllFood.splice(j, 1);
+							}
                         }
-                    }
 
+					}
+
+					// calcualte and draw obstacle angles
+                    var sortedObList = [];
                     for (var i = 0; i < obstacleList.length; i++) {
                         sortedObList = addAngle(sortedObList, obstacleList[i]);
 
@@ -850,43 +968,17 @@ Pseudo-code for rewrite:
                         }
                     }
 
-                    var offsetI = 0;
                     var obOffsetI = 1;
-
-                    if (sortedInterList.length > 0 && sortedInterList[0][1]) {
-                        offsetI = 1;
-                    }
                     if (sortedObList.length > 0 && sortedObList[0][1]) {
                         obOffsetI = 0;
                     }
 
-                    var goodAngles = [];
                     var obstacleAngles = [];
-
-                    for (var i = 0; i < sortedInterList.length; i += 2) {
-                        var angle1 = sortedInterList[(i + offsetI).mod(sortedInterList.length)][0];
-                        var angle2 = sortedInterList[(i + 1 + offsetI).mod(sortedInterList.length)][0];
-                        var diff = (angle2 - angle1).mod(360);
-                        goodAngles.push([angle1, diff]);
-                    }
-
                     for (var i = 0; i < sortedObList.length; i += 2) {
                         var angle1 = sortedObList[(i + obOffsetI).mod(sortedObList.length)][0];
                         var angle2 = sortedObList[(i + 1 + obOffsetI).mod(sortedObList.length)][0];
                         var diff = (angle2 - angle1).mod(360);
                         obstacleAngles.push([angle1, diff]);
-                    }
-
-                    for (var i = 0; i < goodAngles.length; i++) {
-                        var line1 = followAngle(goodAngles[i][0], player[k].x, player[k].y, 100 + player[k].size);
-                        var line2 = followAngle((goodAngles[i][0] + goodAngles[i][1]).mod(360), player[k].x, player[k].y, 100 + player[k].size);
-                        drawLine(player[k].x, player[k].y, line1[0], line1[1], 1);
-                        drawLine(player[k].x, player[k].y, line2[0], line2[1], 1);
-
-                        drawArc(line1[0], line1[1], line2[0], line2[1], player[k].x, player[k].y, 1);
-
-                        drawPoint(line1[0], line1[1], 0, "" + i + ": 0");
-                        drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
                     }
 
                     for (var i = 0; i < obstacleAngles.length; i++) {
@@ -901,108 +993,51 @@ Pseudo-code for rewrite:
                         drawPoint(line2[0], line2[1], 0, "" + i + ": 1");
                     }
 
-					for (var i = 0; i < clusterAllFood.length; i++) {
-						//This is the cost function. Higher is better.
-						var clusterAngle = getAngle(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
+					var biggest = goodAngles.reduce (function (biggest,angle,i) {return angle[1]>biggest[1]?angle:biggest;},[0,0])
+					var perfectAngle = (biggest[0] + biggest[1] / 2).mod(360);
+					var FOOD_ANGLE_TOLERANCE = 0;
+					var LHS = biggest[0]+FOOD_ANGLE_TOLERANCE;
+					var RHS = LHS+biggest[1]-FOOD_ANGLE_TOLERANCE;
+					var dist = 300;
+					var drawLineColor = 7;
+					// Hunt within the perfect angle constraint
+					var foodTarget = clusterAllFood.reduce (function (best, next, n, arr) {
+						clusterBearing = next[3] + (LHS>next[3]&&RHS>359?360:0);
+						if ((clusterBearing >= (LHS)) && (clusterBearing <= (RHS)) && (next[2] > best[2])) {
+							best = next;
+						}
+						return best;
+					}, [0,0,0,[]]);
 
-						clusterAllFood[i][2] = clusterAllFood[i][2] * 6 - computeDistance(clusterAllFood[i][0], clusterAllFood[i][1], player[k].x, player[k].y);
-						clusterAllFood[i][3] = clusterAngle;
-
-						drawPoint(clusterAllFood[i][0], clusterAllFood[i][1], 1, "");
+					if (foodTarget[2] > 0) {
+						dist = computeDistance(player[k].x,player[k].y, foodTarget[0], foodTarget[1]);
+						drawLineColor = 1;
+						perfectAngle = foodTarget[3];
+						for (var l = 0; l < foodTarget[4].length; l++) {
+					        drawPoint(allPossibleFood[foodTarget[4][l]][0], allPossibleFood[foodTarget[4][l]][1], 1, "");
+						}
+						foodTargetRecord.push([getUpdate(),foodTarget]);
 					}
 
+					perfectAngle = shiftAngle(obstacleAngles, perfectAngle, biggest);
 
-                    if (goodAngles.length > 0) {
-                        var bIndex = goodAngles[0];
-                        var biggest = goodAngles[0][1];
-                        for (var i = 1; i < goodAngles.length; i++) {
-                            var size = goodAngles[i][1];
-                            if (size > biggest) {
-                                biggest = size;
-                                bIndex = goodAngles[i];
-                            }
-                        }
-                        var perfectAngle = (bIndex[0] + bIndex[1] / 2).mod(360);
-                    	var RHS = bIndex[0];
-                    	var LHS = RHS+bIndex[1];
-						var FOOD_ANGLE_TOLERANCE = 10;
+					var line1 = followAngle(perfectAngle, player[k].x, player[k].y, dist);
 
-						// oh, sure, that's the perfect angle but can't we try to eat on the way?
-						var food = 0;
-						var dist = 300;
-						for (var i = 0; i < clusterAllFood.length; i++) {
-							clusterBearing = clusterAllFood[i][3] + (RHS>clusterAllFood[i][3]&&LHS>359?360:0);
-							if ((clusterBearing >= (RHS + FOOD_ANGLE_TOLERANCE)) && (clusterBearing <= (LHS - FOOD_ANGLE_TOLERANCE))) {
-								if (clusterAllFood[i][2]>food) {
-									perfectAngle = clusterBearing;
-									food = clusterAllFood[i][2];
-									dist = computeDistance(player[k].x,player[k].y, clusterAllFood[i][0], clusterAllFood[i][1]);
-								}
-							}
-						}
-                        perfectAngle = shiftAngle(obstacleAngles, perfectAngle, bIndex);
-
-                        var line1 = followAngle(perfectAngle, player[k].x, player[k].y, dist);
-
-                        drawLine(player[k].x, player[k].y, line1[0], line1[1], 7);
-                        tempMoveX = line1[0];
-                        tempMoveY = line1[1];
-                    } else if (badAngles.length > 0 && goodAngles == 0) {
-						// enimies exist but no clear path
-                        var distance = computeDistance(player[k].x, player[k].y, lastX, lastY);
-                        var shiftedAngle = shiftAngle(obstacleAngles, getAngle(lastX,lastY, player[k].x, player[k].y), [0, 360]);
-                        var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
-
-                        tempMoveX = destination[0];
-                        tempMoveY = destination[1];
-                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 3);
-                    } else if (clusterAllFood.length > 0) {
-
-						var bestFoodI = 0;
-						var bestFood = clusterAllFood[0][2];
-						for (var i = 1; i < clusterAllFood.length; i++) {
-							if (bestFood < clusterAllFood[i][2]) {
-								bestFood = clusterAllFood[i][2];
-								bestFoodI = i;
-							}
-						}
-
-                        var distance = computeDistance(player[k].x, player[k].y, clusterAllFood[bestFoodI][0], clusterAllFood[bestFoodI][1]);
-                        var shiftedAngle = shiftAngle(obstacleAngles, getAngle(clusterAllFood[bestFoodI][0], clusterAllFood[bestFoodI][1], player[k].x, player[k].y), [0, 360]);
-                        var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
-
-                        tempMoveX = destination[0];
-                        tempMoveY = destination[1];
-                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);
-                    } else {
-                        //If there are no enemies around and no food to eat.
-                        var distance = computeDistance(player[k].x, player[k].y, lastX, lastY);
-
-                        var shiftedAngle = shiftAngle(obstacleAngles, getAngle(lastX,lastY, player[k].x, player[k].y), [0, 360]);
-
-                        var destination = followAngle(shiftedAngle, player[k].x, player[k].y, distance);
-
-                        tempMoveX = destination[0];
-                        tempMoveY = destination[1];
-                        drawLine(player[k].x, player[k].y, tempMoveX, tempMoveY, 1);
-                    }
-
-                    drawPoint(tempPoint[0], tempPoint[1], tempPoint[2], "");
-                    tempPoint[2] = 1;
-                }
+					drawLine(player[k].x, player[k].y, line1[0], line1[1], drawLineColor);
+					tempMoveX = line1[0];
+					tempMoveY = line1[1];
+                } // for
 				lastOthers = {};
 				for (var l = 0; l < allOthers.length; l++) {
 					lastOthers[allOthers[l].id] = [allOthers[l].x, allOthers[l].y];
 				}
-            }
+            } // if player length >0
 
-            lastPosX = player[0].x;
-            lastPosY = player[0].y;
-            priorUpdate = getUpdate();
-            lastX = tempMoveX;
-            lastY = tempMoveY;
+			positionRecord.push([player[0].x,player[0].y]);
+			updateRecord.push(getUpdate());
+			targetRecord.push([tempMoveX,tempMoveY]);
             return [tempMoveX, tempMoveY];
-        }
+        } // if debugDump
     }
 
     function screenToGameX(x) {

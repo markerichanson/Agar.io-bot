@@ -6,6 +6,7 @@
 // @grant       none
 // @author      http://www.twitch.tv/apostolique
 // @require		https://github.com/maxkueng/victor/raw/master/build/victor.js
+// @require		http://underscorejs.org/underscore-min.js
 // ==/UserScript==
 
 
@@ -40,6 +41,11 @@ $.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/bot.user
  		this.records.push(item);
  		if (this.records.length > maxLength) this.records.shift();
  	}
+
+ 	this.counts = function () {
+		return _.reduce(this,function(counts,key){ counts[key]++; return counts },
+                 _.object( _.map( _.uniq(this), function(key) { return [key, 0] })))
+    }
  }
 
 console.log("Running MEH Apos Bot!");
@@ -737,7 +743,7 @@ console.log("Running MEH Apos Bot!");
 			closest = new Victor (0, 0); // means player is in the circle... probably need to ignore this case
 		}
 		else if (projectionLength > x1V.length()) {
-			closest = new Victor (x1, y1);;
+			closest = x1V;
 		} else {
 			closest = new Victor (x1UnitV.x*projectionLength,x1UnitV.y*projectionLength);
 		}
@@ -810,8 +816,27 @@ Pseudo-code for destination determination:
 
 FFS:
 1. generalizing for multiple instances (when split)
+	a. can we just run through the logic once for each, then choose among the results somehow?
+		i. cluster food per player
+	   ii.
+
+	   which has the best available food?
+	   - biggest player[i] can go after safely
+	   ok, can we safely go after it?
+	   - smaller players might be put at risk pursuing food bigger than they are.
+	   - larger players have to worry about obstacles mor ethan smaller.
+	   if everyone can, then go else have options
+	   - drop smaller players and retry, or
+	   - go to the next best food.
+
+	b. the "shift angle" has to be for the whole group, probably with a selective back off to resolve conflicts.
+	c. in all cases, sacrifice the interests of the smaller blobs first.
 2. discounting food that is running away successfully.
+
+				var  = player.reduce();
+				var leastPlayer = player.reduce (function (least,angle,i) {return angle[1]>biggest[1]?angle:biggest;},[0,0])
 */
+
                 for (var k = 0; k < player.length; k++) {
                     drawCircle(player[k].x, player[k].y, player[k].size + splitDistance, 5);
 

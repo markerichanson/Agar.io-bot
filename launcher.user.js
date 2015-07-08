@@ -847,6 +847,7 @@ console.log("Running Bot Launcher!");
         var offsetX = -getMapStartX();
         var offsetY = -getMapStartY();
         debugStrings.push("Location: " + Math.floor(getPlayer()[0].x + offsetX) + ", " + Math.floor(getPlayer()[0].y + offsetY));
+        debugStrings.push("Speed   : " + getPlayer()[0].observedSpeed);
     }
 
     var offsetValue = 20;
@@ -1040,8 +1041,8 @@ console.log("Running Bot Launcher!");
   xa = !1,
   ta = !1,
   I = 0,
-  ha = !1,
-  Pa = !1,
+  ha = !0,
+  Pa = !0,
   P = s = ~~((da + fa) / 2),
   Q = t = ~~((ea + ga) / 2),
   R = 1,

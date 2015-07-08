@@ -9,7 +9,22 @@
 // @require		http://underscorejs.org/underscore-min.js
 // ==/UserScript==
 
+/*
+two of the same overlapping where total size is enough to be a threat
+threats moving toward me
+threats moving towards the line I want to move on
+sqrt rather than log for food
+food and threat ignore choices that are stable when taken... moving toward a threat flips the choice between two
+... moving toward cluster A also reduces distance to cluster B which is larger...
+... on clusters... numerator doesn't change, but denominator (1.2)^d does...
+ma/da^2 < mb/db^2 mb>ma
+ma/(da-x)^2 < mb/(db-y)^2 x>y
+(da-x)^2/ma > (db-y)^2/mb
+(da-x)^2/(db-y)^2 > mb/ma
+(da-x)/(db-y) > sqrt(mb/ma)
+well, maybe not stability but at least not rapid cycling between substationallly opposing angles
 
+*/
 Number.prototype.mod = function(n) {
     return ((this % n) + n) % n;
 };
@@ -18,7 +33,7 @@ Array.prototype.peek = function() {
     return this[this.length - 1];
 };
 
-$.get('https://raw.githubusercontent.com/Apostolique/Agar.io-bot/master/bot.user.js?1', function(data) {
+$.get('https://raw.githubusercontent.com/markerichanson/Agar.io-bot/master/bot.user.js?1', function(data) {
     var latestVersion = data.replace(/(\r\n|\n|\r)/gm,"");
     latestVersion = latestVersion.substring(latestVersion.indexOf("// @version")+11,latestVersion.indexOf("// @grant"));
 
@@ -52,13 +67,14 @@ console.log("Running MEH Apos Bot!");
 (function(f, g) {
     var splitDistance = 710;
     console.log("Apos Bot!");
-    var MAX_HISTORY = 100;
+    var MAX_HISTORY = 10;
 	var lastOthers = {};
     var positionRecord = new Record(MAX_HISTORY);
     var targetRecord = new Record(MAX_HISTORY);
     var updateRecord = new Record(MAX_HISTORY);
 	var foodTargetRecord = new Record(MAX_HISTORY);
 	var worstThreatRecord = new Record(MAX_HISTORY);
+	var risks = {};
 
     if (f.botList == null) {
         f.botList = [];
@@ -184,7 +200,7 @@ console.log("Running MEH Apos Bot!");
                 }
             }
 
-            if (!isMe && (!interNodes[element].d )) {
+            if (!isMe && (!interNodes[element].A )) {
                 return true;
             }
             return false;
@@ -310,7 +326,8 @@ console.log("Running MEH Apos Bot!");
 			//     as the gross product of mass and membership grows (hence "log").
 			// 1.  farther is worse, and it gets worse exponentially as distance grows.
 			// Changing the base in either part might have interesting results.
-			clusters[i][2] = Math.log(clusters[i][2]*clusters[i][4].length)/(1.1^computeDistance(clusters[i][0], clusters[i][1], player.x, player.y));
+			//clusters[i][2] = Math.log(clusters[i][2]*clusters[i][4].length)/(1.1^computeDistance(clusters[i][0], clusters[i][1], player.x, player.y));
+			clusters[i][2] = (clusters[i][2]*clusters[i][4].length)^(0.25)/(1.1^computeDistance(clusters[i][0], clusters[i][1], player.x, player.y));
 		}
 
         return clusters;
@@ -751,11 +768,25 @@ console.log("Running MEH Apos Bot!");
 	}
 
 
-	function Threat (i, distance, splitThreat, threatRange) {
+	function Threat (i, distance, splitThreat, threatRange, risk) {
 		this.i = i;
 		this.distance = distance;
 		this.splitThreat = splitThreat;
 		this.threatRange = threatRange;
+		this.risk = risk;
+	}
+
+	function computeVelocities (allOthers, lastOthers, deltaT) {
+		for (var i = 0; i < allOthers.length; i++) {
+			previousPos = lastOthers[allOthers[i].id];
+			var velocity = null;
+			if (previousPos != null) {
+				velocity = new Victor(allOthers[i].x,allOthers[i].y,previousPos[0],previousPos[1]);
+				velocity.divideX(deltaT);
+				velocity.divideY(deltaT);
+			}
+			allOthers[i].velocity = velocity;
+		}
 	}
 
     function findDestination(debugDump) {
@@ -772,7 +803,7 @@ console.log("Running MEH Apos Bot!");
         if ( debugDump ) {
 			var toDumpList = {};
 			toDumpList["update"] = getUpdate();
-			toDumpList["updateRecord"] = updateRecord;
+			/*toDumpList["updateRecord"] = updateRecord;
 			toDumpList["positionRecord"] = positionRecord;
 			toDumpList["targetRecord"] = targetRecord;
 			toDumpList["foodTargetRecord"] =  foodTargetRecord;
@@ -784,7 +815,8 @@ console.log("Running MEH Apos Bot!");
 				toDumpList["food"] =  getAllFood(player[0]);
 				toDumpList["viruses"] =  getAllViruses(player[0]);
 				toDumpList["threats"] =  getAllThreats(player[0]);
-			}
+			}*/
+			//toDumpList["risks"] = risks;
 			var seen = [];
 			console.log(JSON.stringify(toDumpList, function(key, val) {
 				  if (val != null && typeof val == "object") {
@@ -801,6 +833,25 @@ console.log("Running MEH Apos Bot!");
             if (player.length > 0) {
 
 				var allOthers = getAllOthers (player[0]);
+				var deltaT = (updateRecord.records.length > 0) ? getUpdate()-updateRecord.records[updateRecord.records.length-1] : 0;
+
+				var newLastOthers = {};
+				for (var l = 0; l < allOthers.length; l++) {
+					var lastOther = lastOthers[allOthers[l].id];
+					if (lastOther != null) {
+						var velocity = new Victor(allOthers[l].x,allOthers[l].y,lastOther[0],lastOther[1]);
+						velocity.x /= (deltaT);
+						velocity.y /= (deltaT);
+						// accV = (velocity - allOthers[l].velocity)/deltaT
+						allOthers[l].velocity = velocity;
+						lastOther = [allOthers[l].x, allOthers[l].y, allOthers[l].velocity, lastOther[3]+deltaT];
+					}
+					else {
+						lastOther = [allOthers[l].x, allOthers[l].y, null, 0]
+					}
+					newLastOthers[allOthers[l].id] = lastOther;
+				}
+				lastOthers = newLastOthers;
 
 /*
 Pseudo-code for destination determination:
@@ -880,16 +931,31 @@ FFS:
 						var threatRange = player[k].size + (splitThreat ? allPossibleThreats[i].size + splitDistance : allPossibleThreats[i].size + player[k].size);
 
                     	var enemyDistance = computeDistance(allPossibleThreats[i].x, allPossibleThreats[i].y, player[k].x, player[k].y);
+						var diffVector = new Victor(allPossibleThreats[i].x, allPossibleThreats[i].y, player[k].x, player[k].y);
+/*
+						console.log (allPossibleThreats[i].id);
+						console.log (lastOthers[allPossibleThreats[i].id]);
+						console.log (lastOthers[allPossibleThreats[i].id+""]);
+*/
+						var velocity = (lastOthers[allPossibleThreats[i].id] != null) ? lastOthers[allPossibleThreats[i].id][3] : null;
+						var risk = (velocity != null) ? diffVector.dot(velocity) : 0;
 
+						//risks[risk] = risks[risk] != null ? risks[risk]+1 : 1;
+						//var timeToIntercept =
+						// first if, then when
+						// if := on current vector will it pass w/in size distance
                     	if (enemyDistance < threatRange) {
                             //badAngles.push(getAngleRange(player[k], allPossibleThreats[i], i));
-                            realThreats.push(new Threat(i, enemyDistance, splitThreat, threatRange));
+                            realThreats.push(new Threat(i, enemyDistance, splitThreat, threatRange, risk));
 						}
                     }
 					// here's the crux of it... sort realThreats so least threatening are at the end.
-					realThreats.sort(function(a, b){return (a.distance - a.threatRange)-(b.distance-b.threatRange)})
-                    //NOTE: This is only bandaid wall code. It's not the best way to do it.
+//					realThreats.sort(function(a, b){return (a.distance - a.threatRange)-(b.distance-b.threatRange)})
+					realThreats.sort(function(a, b){return (a.risk)-(b.risk)})
+
                     if (realThreats.length>0) {
+//						console.log(realThreats);
+	                    //NOTE: This is only bandaid wall code. It's not the best way to do it.
 						stupidList = addWall(stupidList, player[k]);
 						// record the worst threat for debug (if there are any real threats).
 						worstThreatRecord.push([getUpdate(), realThreats[0]]);
@@ -931,7 +997,7 @@ FFS:
 					// If there are any threats at all, the
 					if (goodAngles.length == 0) {
 						goodAngles.push([0,359]);
-						if (realThreats.length>0) console.log ("BAD ASSUMPTION SOMEWHERE... threats exist but no good angle was found!!");
+						if (realThreats.length>0) alert ("BAD ASSUMPTION SOMEWHERE... threats exist but no good angle was found!!");
 					}
 					else {
 						// draw good angles
@@ -963,7 +1029,7 @@ FFS:
                         for (var j = clusterAllFood.length - 1; j >= 0 ; j--) {
 							// Does path to food pass too close to a threat?
 							// "Too close" means path to food crosses within the circle of threatRange (including being directly w/in that circle)
-
+// can redo as a race to the point in question
 							var closestV = lineSegmentIntersectsCircle (
 								player[k].x, player[k].y,
 								clusterAllFood[j][0], clusterAllFood[j][1],
@@ -1020,7 +1086,7 @@ FFS:
 
 					var biggest = goodAngles.reduce (function (biggest,angle,i) {return angle[1]>biggest[1]?angle:biggest;},[0,0])
 					var perfectAngle = (biggest[0] + biggest[1] / 2).mod(360);
-					var FOOD_ANGLE_TOLERANCE = 0;
+					var FOOD_ANGLE_TOLERANCE = 15;
 					var LHS = biggest[0]+FOOD_ANGLE_TOLERANCE;
 					var RHS = LHS+biggest[1]-FOOD_ANGLE_TOLERANCE;
 					var dist = 300;
@@ -1052,14 +1118,23 @@ FFS:
 					tempMoveX = line1[0];
 					tempMoveY = line1[1];
                 } // for
-				lastOthers = {};
-				for (var l = 0; l < allOthers.length; l++) {
-					lastOthers[allOthers[l].id] = [allOthers[l].x, allOthers[l].y];
-				}
             } // if player length >0
 
 			positionRecord.push([player[0].x,player[0].y]);
 			updateRecord.push(getUpdate());
+/*			var accumulator = 0;
+			for (var l = 1; l < positionRecord.records.length; l++) {
+				prior = positionRecord.records[l-1];
+				position = positionRecord.records[l];
+				// compute speed between updates
+				traveled = new Victor(position[0]-prior[0],position[1]-prior[1]);
+				accumulator += traveled.length()/(updateRecord.records[l]-updateRecord.records[l-1]);
+			}
+			player[0].observedSpeed = accumulator/positionRecord.records.length;
+			if ((targetRecord.records.length > 0) && ((tempMoveX != targetRecord.records[0][0]) || (tempMoveY != targetRecord.records[0][1]))) {
+				console.log ("------------target change----------");
+			}
+			console.log ("observed speed : "+player[0].observedSpeed); */
 			targetRecord.push([tempMoveX,tempMoveY]);
             return [tempMoveX, tempMoveY];
         } // if debugDump
